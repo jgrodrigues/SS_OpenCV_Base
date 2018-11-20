@@ -1,0 +1,14 @@
+{
+  "ProjectFilePath": "/Users/jonasrodrigues/Documents/Github/SS/SS_OpenCV_2.4.10 - 2018-09-17/SS_OpenCV_Base/SS_OpenCV/SS_OpenCV.csproj",
+  "TargetFramework": "v4.0",
+  "TagHelpers": [],
+  "Configuration": {
+    "ConfigurationName": "UnsupportedRazor",
+    "LanguageVersion": "1.0",
+    "Extensions": [
+      {
+        "ExtensionName": "UnsupportedRazorExtension"
+      }
+    ]
+  }
+}

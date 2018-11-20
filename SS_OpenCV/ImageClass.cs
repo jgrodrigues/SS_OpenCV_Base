@@ -22,7 +22,17 @@ namespace SS_OpenCV
             Pieces_positions = new List<int[]>();
 
             int[] piece_vector = new int[4];
+            int[,] imagesCoords = imageFinder(img);
+            Console.WriteLine(imagesCoords);
 
+            if (level == 0) {
+                int xStart = imagesCoords[0,0];
+                int yStart = imagesCoords[0,1];
+
+                int xFinal = imagesCoords[0,3];
+                int yFinal = imagesCoords[0,4];
+                Translation(img,imgCopy,-xStart,-yStart);
+            }
             if (level == 1)
             {
 
@@ -48,11 +58,12 @@ namespace SS_OpenCV
             Pieces_angle = new List<int>();
             Pieces_angle.Add(0); // angle
 
-            return dummyImg;
+            return imgCopy;
         }
 
-        public static int[][] imageFinder(Image<Bgr, byte> img)
+        public static int[,] imageFinder(Image<Bgr, byte> img)
         {
+            
             unsafe
             {
                 MIplImage mStart = img.MIplImage;
@@ -66,21 +77,24 @@ namespace SS_OpenCV
                 int rBack = dataPtr[2];
                 int numberImages = 0;
                 int[,] imagesCoords;
-
+                int nChan = mStart.nChannels;
+                int x, y;
+                int left, bottom, right, top, label;
+                
                 while (changes == 1)
                 {
                     changes = 0;
-                    for (int y = 0; y < img.Height; y++)
+                    for (y = 1; y < img.Height; y++)
                     {
-                        for (int x = 0; x < img.Width; x++)
+                        for (x = 1; x < img.Width; x++)
                         {
                             if (dataPtr[0] != bBack || dataPtr[1] != gBack || dataPtr[2] != rBack)
                             {
-                                int left = matrix[x - 1, y];
-                                int top = matrix[x, y - 1];
-                                int right = matrix[x + 1, y];
-                                int bottom = matrix[x, y + 1];
-                                int label = width * height;
+                                left = matrix[x - 1, y];
+                                top = matrix[x, y - 1];
+                                right = matrix[x + 1, y];
+                                bottom = matrix[x, y + 1];
+                                label = width * height;
 
                                 if (top != 0 && top < label)
                                 {
@@ -112,34 +126,164 @@ namespace SS_OpenCV
                         }
                     }
                 }
+                
+                dataPtr = (byte*)mStart.imageData.ToPointer();
+
+                //Top Margin
+                for(x = 1; x < width - 1; x++){
+
+                    if (dataPtr[0] != bBack || dataPtr[1] != gBack || dataPtr[2] != rBack){
+                        left = matrix[x - 1, 0];
+                        bottom = matrix[x, 1];
+                        label = width * height;
+
+                        if (left != 0 && left < label)
+                        {
+                            label = left;
+                        }
+
+                        if (bottom != 0 && bottom < label)
+                        {
+                            label = bottom;
+                        }        
+
+                        matrix[x, 0] = label; 
+                    }
+
+                    dataPtr 
+                                                                                                  
+                }          
+
+                //Bottom Margin
+                for(x = 1; x < width - 1; x++) {
+                    left = matrix[x - 1,height-1];
+                    top = matrix[x, height - 2];
+                    right = matrix[x + 1, height - 1];
+                    label = width * height;                    
+
+                    if (left != 0 && left < label)
+                    {
+                        label = left;
+                    }
+
+                    if (right != 0 && right < label)
+                    {
+                        label = right;
+                    }
+
+                    if (top != 0 && top < label)
+                    {
+                        label = top;
+                    }
+                    
+                    matrix[x, 0] = label;                                                                                  
+                }            
+                
+                //Left Margin     
+                x = width-1;                                          
+                for(y = 1; y < height-1; y++) {
+                    top = matrix[x, y];
+                    right = matrix[x + 1, y];
+                    label = width * height;                    
+
+                    if (top != 0 && top < label)
+                    {
+                        label = top;
+                    }
+
+                    if (right != 0 && right < label)
+                    {
+                        label = right;
+                    }                                                                                                                                                    
+                }     
+                //Right Margin
+                x = width-1;                                        
+                for(y = 1; y < height-1; y++) {    
+                    left = matrix[x - 1,y];
+                    top = matrix[x, y];
+                    label = width * height;                    
+
+                    if (left != 0 && left < label)
+                    {
+                        label = left;
+                    }
+
+                    if (top != 0 && top < label)
+                    {
+                        label = top;
+                    }
+                }
+
+                //Superior Right Corner
+                left = matrix[x-1, 0];
+                bottom = matrix[x, 1];
+                label = width * height;
+                if (left != 0 && left < label)
+                {
+                    label = left;
+                }
+
+                if (bottom != 0 && bottom < label)
+                {
+                    label = bottom;
+                }
+                //Inferior Left Corner
+                top = matrix[0, y-1];
+                right = matrix[1, y];
+                label = width * height;
+                if (top != 0 && top < label)
+                {
+                    label = top;
+                }
+                if (right != 0 && right < label)
+                {
+                    label = right;
+                }
+                //Inferior Right Corner                              
+                top = matrix[x, y-1];
+                left = matrix[x - 1, y];
+                label = width * height;
+                if (top != 0 && top < label)
+                {
+                    label = top;
+                }
+                if (left != 0 && left < label)
+                {
+                    label = left;
+                }
+
+
+                //Construir inicio e fim de cada imagem
                 imagesCoords = new int[numberImages, 4];
                 int currentLabel = 0;
 
-                for (int y = 0; y < img.Height && numberImages != currentLabel; y++)
+                for (y = 0; y < height && numberImages != currentLabel; y++)
                 {
-                    for (int x = 0; x < img.Width && numberImages != currentLabel; x++)
+                    for (x = 0; x < width && numberImages != currentLabel; x++)
                     {
                         if (matrix[x, y] != currentLabel)
                         {
                             imagesCoords[currentLabel, 0] = x;
                             imagesCoords[currentLabel, 1] = y;
+                            currentLabel++;
                         }
                     }
                 }
 
                 currentLabel = 0;
-
-                for (int y = 0; y < img.Height && numberImages!= currentLabel ; y++)
+                for (y = height; y > 0 && numberImages != currentLabel ; y--)
                 {
-                    for (int x = 0; x < img.Width && numberImages != currentLabel; x++)
+                    for (x = width; x > 0 && numberImages != currentLabel; x--)
                     {
                         if (matrix[x, y] != currentLabel)
                         {
-                            imagesCoords[currentLabel, 1] = x;
-                            imagesCoords[currentLabel, 2] = y;
+                            imagesCoords[currentLabel, 2] = x;
+                            imagesCoords[currentLabel, 3] = y;
+                            currentLabel++;
                         }
                     }
                 }
+                return imagesCoords;
             }
         }
 
@@ -205,7 +349,7 @@ namespace SS_OpenCV
                     dataPtr += padding;
                 }
 
-                Image<Bgr, byte> ret = new Image<Bgr, byte>[2];
+                Image<Bgr, byte>[] ret = new Image<Bgr, byte>[2];
                 ret[0] = piece1;
                 ret[1] = piece2;
                 return ret;
@@ -238,15 +382,9 @@ namespace SS_OpenCV
                     dataPtr += 3;
                     dataPtr2 += 3;
                 }
-                return (int)Math.abs(difference);
+                return (int)Math.Abs(difference);
             }
         }
-
-        public static int compareSides(Image<Bgr, byte> img1, Image<Bgr, byte> img2)
-        {
-
-        }
-
 
 
         /// <summary>
@@ -291,7 +429,6 @@ namespace SS_OpenCV
 
                         dataPtr += nChan;
                     }
-
                     dataPtr += padding;
                 }
             }
