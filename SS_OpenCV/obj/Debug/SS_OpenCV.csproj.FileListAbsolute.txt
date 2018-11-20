@@ -181,3 +181,4 @@ C:/Users/jonasrodrigues/Documents/SS/SS_OpenCV_2.4.10 - 2018-09-17/SS_OpenCV_Bas
 \\Mac\Home\Documents\Github\SS\SS_OpenCV_2.4.10 - 2018-09-17\SS_OpenCV_Base\SS_OpenCV\obj\Debug\SS_OpenCV.csproj.CopyComplete
 \\Mac\Home\Documents\Github\SS\SS_OpenCV_2.4.10 - 2018-09-17\SS_OpenCV_Base\SS_OpenCV\obj\Debug\SS_OpenCV.exe
 \\Mac\Home\Documents\Github\SS\SS_OpenCV_2.4.10 - 2018-09-17\SS_OpenCV_Base\SS_OpenCV\obj\Debug\SS_OpenCV.pdb
+\\Mac\Home\Documents\Github\SS\SS_OpenCV_2.4.10 - 2018-09-17\SS_OpenCV_Base\SS_OpenCV\obj\Debug\SS_OpenCV.csprojAssemblyReference.cache
