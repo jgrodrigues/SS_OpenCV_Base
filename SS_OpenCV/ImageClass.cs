@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text;
 using Emgu.CV.Structure;
 using Emgu.CV;
-//boas
 namespace SS_OpenCV
 {
     class ImageClass
@@ -102,15 +101,23 @@ namespace SS_OpenCV
             return dummyImg;                        
         }
 
+        /// </summary>
+        /// Function that resolves a level 1 puzzle, givem the pieces' positions
+        /// </summary>
+        /// <param name="pieces_positions">the coordinates of the two pieces</param>
+        /// <param name="img">the puzzle with the two pieces, unsolved</param>
         public static Image<Bgr, byte> joinPiecesLevel1 (List<int[]> pieces_positions, Image<Bgr, byte> img) {
-            Image<Bgr, byte> dummyImg = img.Copy();
+            Image<Bgr, byte> dummyImg;
             int widthPiece1 = pieces_positions[0][2] - pieces_positions[0][0];
             int heightPiece1 = pieces_positions[0][3] - pieces_positions[0][1];
             int widthPiece2 = pieces_positions[1][2] - pieces_positions[1][0];
             int heightPiece2 = pieces_positions[1][3] - pieces_positions[1][1];
             int[] differencesLeftRight = null;
-            int[] differencesTopBottom = null;                                                
+            int[] differencesTopBottom = null;     
+            int totalWidth;
+            int totalHeight;                 
 
+            //If the two pieces have the exact same measures
             if(widthPiece1 == widthPiece2 && heightPiece1 == heightPiece2){
                 //Index0 is the difference between left of image1 and right of image2
                 //Index1 is the difference between right of image1 and left of image2
@@ -126,42 +133,181 @@ namespace SS_OpenCV
                 
                 int leastDifference = leastDifference(diferences);
 
-                if(leastDifference == 0){
-                    dummyImg = joinLeft1Right2();
-                } else if(leastDifference == 1){
-                    dummyImg = joinRight1Left2();                    
-                } else if(leastDifference == 2){
-                    dummyImg = joinTop1Bottom2();
-                } else{
-                    dummyImg = joinBottom1Top2();                    
+                //if the joint is to be made between right and left sides
+                if(leastDifference<2){
+                    totalHeight = heightPiece1;
+                    totalWidth = widthPiece1 + widthPiece2;
+
+                    if(leastDifference == 0){
+                        dummyImg = joinLeftRight(pieces_positions[1][0], pieces_positions[1][1], pieces_positions[0][0], pieces_positions[0][1], img, totalHeight, totalWidth);
+                    } else {
+                        dummyImg = joinLeftRight(pieces_positions[0][0], pieces_positions[0][1], pieces_positions[1][0], pieces_positions[1][1], img, totalHeight, totalWidth); 
+                    }
+
+                //If the joint is to be made between top and bottom sides
+                } else {
+                    totalWidth = widthPiece1;
+                    totalHeight = heightPiece1 + heightPiece2;
+
+                    if(leastDifference == 2){
+                        dummyImg = joinTopBottom(pieces_positions[1][0], pieces_positions[1][1], pieces_positions[0][0], pieces_positions[0][1], img, totalHeight, totalWidth);
+                    } else {
+                        dummyImg = joinTopBottom(pieces_positions[0][0], pieces_positions[0][1], pieces_positions[1][0], pieces_positions[1][1], img, totalHeight, totalWidth);                    
+                    }
                 }
-                                                                
+
+            //If the two pieces only have the same width                                         
             } else if (widthPiece1 == widthPiece2) {
                 //Index0 is the difference between top of image1 and bottom of image2
                 //Index1 is the difference between bottom of image1 and top of image2                            
                 differencesTopBottom = checkTopBottom(pieces_positions, img);
+                totalWidth = widthPiece1;
+                totalHeight = heightPiece1 + heightPiece2;
 
                 if(differencesTopBottom[0] < differencesTopBottom[1]){
-                    dummyImg = joinTop1Bottom2();
-                } else{
-                    dummyImg = joinBottom1Top2();
+                    dummyImg = joinTopBottom(pieces_positions[1][0], pieces_positions[1][1], pieces_positions[0][0], pieces_positions[0][1], img, totalHeight, totalWidth);
+                } else {
+                    dummyImg = joinTopBottom(pieces_positions[0][0], pieces_positions[0][1], pieces_positions[1][0], pieces_positions[1][1], img, totalHeight, totalWidth);                    
                 }
                 
+            //If the two pieces only have the sane height
             } else {
                 //Index0 is the difference between left of image1 and right of image2
                 //Index1 is the difference between right of image1 and left of image2                
                 differencesLeftRight = checkLeftRightSides(pieces_positions, img);
+                totalWidth = widthPiece1 + widthPiece2;
+                totalHeight = heightPiece1;   
 
                 if(differencesLeftRight[0] < differencesLeftRight[1]){
-                    dummyImg = joinLeft1Right2();
+                    dummyImg = joinLeftRight(pieces_positions[1][0], pieces_positions[1][1], pieces_positions[0][0], pieces_positions[0][1], img, totalHeight, totalWidth);
                 } else{
-                    dummyImg = joinRight1Left2();
-                }                                
+                    dummyImg = joinLeftRight(pieces_positions[0][0], pieces_positions[0][1], pieces_positions[1][0], pieces_positions[1][1], img, totalHeight, totalWidth);
+                }                             
             }
-            
+
             return dummyImg;                
         }
 
+        /// </summary>
+        /// Function that joins two pieces, one on the opt and other one on the bottom, and returns the result of the joint
+        /// </summary>
+        /// <param name="topX">X coordinate in the img of the piece to be above the other</param>
+        /// <param name="topY">Y coordinate in the img of the piece to be above the other</param>
+        /// <param name="botX">X coordinate in the img of the piece to be under the other</param>
+        /// <param name="botY">Y coordinate in the img of the piece to be under the other</param>
+        /// <param name="img">The image object with the two pieces</param>
+        /// <param name="totalHeight">Height of the joint pieces</param>
+        /// <param name="totalWidth">Width of the joint pieces</param>
+        private static Image<Bgr, byte> joinTopBottom(int topX, int topY, int botX, int botY, Image<Bgr, byte> img, int totalHeight, int totalWidth){
+            unsafe{
+                MIplImage m = img.MIplImage;
+                int nChan = m.nChannels;
+                int widthStep = m.widthStep;
+                int padding = widthStep - nChan * totalWidth;
+                int x, y;
+
+                //Pointer of the top piece
+                byte* dataPtr1 = (byte*)m.imageData.ToPointer();
+                dataPtr1 += nChan * topX + widthStep * topY;
+                //Pointer of the bottom piece
+                byte* dataPtr2 = (byte*)m.imageData.ToPointer();
+                dataPtr2 += nChan * botX + widthStep * botY;
+
+                Image<Bgr, byte> dummyImg = new Image<Bgr, byte>(totalWidth, totalHeight);
+                MIplImage m2 = dummyImg.MIplImage;
+                byte* dataPtrDummy = (byte*)m2.imageData.ToPointer();
+
+                //Copies to dummyImg the top piece
+                for(y=0; y<totalHeight/2; y++){
+
+                    for(x=0; x<totalWidth; x++){
+                        dataPtrDummy = dataPtr1;
+                        dataPtr1 += nChan;
+                        dataPtrDummy += nChan;
+                    }
+
+                    dataPtr1 += padding;
+                    dataPtrDummy += padding;
+                }
+
+                //Copies to dummyImg the bottomPiece
+                for(y=totalHeight/2; y<totalHeight; y++){
+
+                    for(x=0; x<totalWidth; x++){
+                        dataPtrDummy = dataPtr2;
+                        dataPtr2 += nChan;
+                        dataPtrDummy += nChan;
+                    }
+
+                    dataPtr2 += padding;
+                    dataPtrDummy += padding;
+                }
+
+                return dummyImg;
+            }
+        }
+
+        /// </summary>
+        /// Function that joins two pieces, one on the left and other one on the right, and returns the result of the joint
+        /// </summary>
+        /// <param name="leftX">X coordinate in the img of the piece to be on the left side</param>
+        /// <param name="leftY">Y coordinate in the img of the piece to be on the left side</param>
+        /// <param name="rightX">X coordinate in the img of the piece to be on the right side</param>
+        /// <param name="rightY">Y coordinate in the img of the piece to be on the right side</param>
+        /// <param name="img">The image object with the two pieces</param>
+        /// <param name="totalHeight">Height of the joint pieces</param>
+        /// <param name="totalWidth">Width of the joint pieces</param>
+        private static Image<Bgr, byte> joinLeftRight(int leftX, int leftY, int rightX, int rightY, Image<Bgr, byte> img, int totalHeight, int totalWidth){
+            unsafe{
+                MIplImage m = img.MIplImage;
+                int nChan = m.nChannels;
+                int widthStep = m.widthStep;
+                int padding = widthStep - nChan * totalWidth;
+                int x, y;
+
+                //Pointer of the left piece
+                byte* dataPtr1 = (byte*)m.imageData.ToPointer();
+                dataPtr1 += nChan * leftX + widthStep * leftY;
+                //Pointer of the right piece
+                byte* dataPtr2 = (byte*)m.imageData.ToPointer();
+                dataPtr2 += nChan * rightX + widthStep * rightY;
+
+                Image<Bgr, byte> dummyImg = new Image<Bgr, byte>(totalWidth, totalHeight);
+                MIplImage m2 = dummyImg.MIplImage;
+                byte* dataPtrDummy = (byte*)m2.imageData.ToPointer();
+
+                for(y=0; y<totalHeight; y++){
+                    //Coppies to dummyImg the left piece
+                    for(x=0; x<totalWidth/2; x++){
+                        dataPtrDummy = dataPtr1;
+                        dataPtr1 += nChan;
+                        dataPtrDummy += nChan;
+                    }
+
+                    //Coppies to dummyImg the right piece
+                    for(x=totalWidth/2; x<totalWidth; x++){
+                        dataPtrDummy = dataPtr2;
+                        dataPtr2 += nChan;
+                        dataPtrDummy += nChan;
+                    }
+
+                    dataPtr1 += padding;
+                    dataPtr2 += padding;
+                    dataPtrDummy += padding;
+                }
+
+                return dummyImg;
+            }
+        }
+
+        /// </summary>
+        /// Function that, given an array of ints, checks wich index has the smallest number.
+        /// </summary>
+        /// <param name="differences">the int array, each index represents the difference between two sides of two pictures.</param>
+        //Index0 is the difference between left of image1 and right of image2
+        //Index1 is the difference between right of image1 and left of image2
+        //Index2 is the difference between top of image1 and bottom of image2
+        //Index3 is the difference between bottom of image1 and top of image2 
         private static int leastDifference(int[] differences){
             int smallestValue = differences[0];
             int smallestIndex = 0;
@@ -175,6 +321,9 @@ namespace SS_OpenCV
 
             return smallestIndex;                            
         }            
+
+        //Isto esta aqui a fazer o que?? Estava fora de função, meti aqui dentro        
+        public static void wtf(){
             //Meaning no pieces are connected together            
             joinedSides = initJoinedSides(pieces_positions);
 
@@ -212,8 +361,9 @@ namespace SS_OpenCV
                     }
                 }                            
 
-            return dummyImg;                        
-
+            //return dummyImg;          
+        }              
+        
         public static int[] checkLeftRightSides(List<int[]> pieces_positions, Image<Bgr,byte> img) {
             unsafe {
                 MIplImage m = img.MIplImage;
@@ -316,7 +466,6 @@ namespace SS_OpenCV
                 int gBack = dataPtr[1];
                 int rBack = dataPtr[2];
                 int numberImages = 0;
-                // int[,] imagesCoords;
                 List<int[]> Pieces_positions = new List<int[]>();
 
                 int nChan = mStart.nChannels;
@@ -325,6 +474,7 @@ namespace SS_OpenCV
                 int x, y;
                 int left, bottom, right, top, label;
                 
+                //Algoritmo dos componentes ligados
                 while (changes == 1)
                 {
                     dataPtr = (byte*)mStart.imageData.ToPointer();
@@ -379,10 +529,10 @@ namespace SS_OpenCV
                     }
                 }
                 
+                //Top Margin
                 dataPtr = (byte*)mStart.imageData.ToPointer();
                 dataPtr += nChan;
 
-                //Top Margin
                 for(x = 1; x < width - 1; x++){
 
                     if (dataPtr[0] != bBack || dataPtr[1] != gBack || dataPtr[2] != rBack){
@@ -528,10 +678,8 @@ namespace SS_OpenCV
                     label = left;
                 }
 
-
-                //Construir inicio e fim de cada imagem
+                //Construir inicio de cada imagem
                 int currentLabel = 0;
-
                 for (y = 0; y < height && numberImages != currentLabel; y++)
                 {
                     for (x = 0; x < width && numberImages != currentLabel; x++)
@@ -545,6 +693,7 @@ namespace SS_OpenCV
                     }
                 }
 
+                //Construir fim de cada imagem
                 currentLabel = 0;
                 for (y = height - 1; y >= 0 && numberImages != currentLabel ; y--)
                 {
@@ -562,6 +711,7 @@ namespace SS_OpenCV
             }
         }
 
+        //Metodo feito na primeira aula, possivelmente lixo.
         public static Image<Bgr, byte>[] createImages(Image<Bgr, byte> img)
         {
             unsafe
@@ -628,36 +778,6 @@ namespace SS_OpenCV
                 ret[0] = piece1;
                 ret[1] = piece2;
                 return ret;
-            }
-        }
-
-        public static int compareSides(Image<Bgr, byte> peace1, Image<Bgr, byte> peace2)
-        {
-            return -1;
-        }
-
-        //pre widths iguais etc e height
-        public static int compareTopAndBottom(Image<Bgr, byte> img, int[] piece_vector, int[] piece_vector2)
-        {
-            unsafe
-            {
-                int difference = 0;
-                MIplImage m = img.MIplImage;
-                byte* dataPtr = (byte*)m.imageData.ToPointer();
-                byte* dataPtr2 = (byte*)m.imageData.ToPointer();
-
-                int xTopLeft = piece_vector[0];
-                int width = piece_vector[2] - xTopLeft + 1;
-
-                int x2BottomLeft = piece_vector2[0];
-
-                for (int i = xTopLeft; i < width; i++)
-                {
-                    difference = dataPtr[0] - dataPtr2[0] + dataPtr[1] - dataPtr2[1] + dataPtr[2] - dataPtr2[2];
-                    dataPtr += 3;
-                    dataPtr2 += 3;
-                }
-                return (int)Math.Abs(difference);
             }
         }
 
