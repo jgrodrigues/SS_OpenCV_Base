@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Emgu.CV.Structure;
 using Emgu.CV;
-
+//boas
 namespace SS_OpenCV
 {
     class ImageClass
