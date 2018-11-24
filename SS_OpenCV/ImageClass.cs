@@ -29,9 +29,6 @@ namespace SS_OpenCV
             Pieces_angle = new List<int>(); 
             Pieces_angle.Add(0); // angle
 
-            // MIplImage mStart = img.MIplImage;
-            //Pieces_positions = imageFinder(dummyImg);
-
             if (level == 1)
             {                
                 Pieces_positions = imageFinderLevel1(dummyImg);
@@ -96,7 +93,7 @@ namespace SS_OpenCV
 
                         //left with others right
                     }
-                }                            
+                }         
 
             return dummyImg;                        
         }
@@ -583,13 +580,13 @@ namespace SS_OpenCV
   
                 //Left Margin  
                 dataPtr = (byte*)mStart.imageData.ToPointer();
-                dataPtr += widthStep;   
-                x = width-1;                                          
+                dataPtr += widthStep;         
+                x = 0;                     
                 for(y = 1; y < height-1; y++) {
 
                     if (dataPtr[0] != bBack || dataPtr[1] != gBack || dataPtr[2] != rBack){
-                        top = matrix[x, y];
-                        right = matrix[x + 1, y];
+                        top = matrix[x, y-1];
+                        right = matrix[x+1, y];
                         label = width * height;                    
 
                         if (top != 0 && top < label)
@@ -602,7 +599,7 @@ namespace SS_OpenCV
                             label = right;
                         }   
 
-                        matrix[0, y] = label;  
+                        matrix[x, y] = label;  
                     }                                                                                                                                         
                 }     
 
@@ -614,7 +611,7 @@ namespace SS_OpenCV
 
                     if (dataPtr[0] != bBack || dataPtr[1] != gBack || dataPtr[2] != rBack){
                         left = matrix[x - 1,y];
-                        top = matrix[x, y];
+                        top = matrix[x, y-1];
                         label = width * height;                    
 
                         if (left != 0 && left < label)
@@ -627,56 +624,73 @@ namespace SS_OpenCV
                             label = top;
                         }
 
-                        matrix[width - 1, y] = label;  
+                        matrix[x, y] = label;  
                     }
                 }
 
                 //Superior Right Corner
                 dataPtr = (byte*)mStart.imageData.ToPointer();
                 dataPtr += nChan * (width-1);
-                left = matrix[x-1, 0];
-                bottom = matrix[x, 1];
-                label = width * height;
-                
-                if (left != 0 && left < label)
-                {
-                    label = left;
-                }
+                x = width-1;
+                if (dataPtr[0] != bBack || dataPtr[1] != gBack || dataPtr[2] != rBack){
+                    left = matrix[x-1, 0];
+                    bottom = matrix[x, 1];
+                    label = width * height;
+                    
+                    if (left != 0 && left < label)
+                    {
+                        label = left;
+                    }
 
-                if (bottom != 0 && bottom < label)
-                {
-                    label = bottom;
+                    if (bottom != 0 && bottom < label)
+                    {
+                        label = bottom;
+                    }
+
+                    matrix[x,0] = label;
                 }
+                
 
                 //Inferior Left Corner
                 dataPtr = (byte*)mStart.imageData.ToPointer();
                 dataPtr += widthStep * (height-1);
-                top = matrix[0, y-1];
-                right = matrix[1, y];
-                label = width * height;
-                if (top != 0 && top < label)
-                {
-                    label = top;
-                }
-                if (right != 0 && right < label)
-                {
-                    label = right;
+                y = height-1;
+                if (dataPtr[0] != bBack || dataPtr[1] != gBack || dataPtr[2] != rBack){
+                    top = matrix[0, y-1];
+                    right = matrix[1, y];
+                    label = width * height;
+                    if (top != 0 && top < label)
+                    {
+                        label = top;
+                    }
+                    if (right != 0 && right < label)
+                    {
+                        label = right;
+                    }
+
+                    matrix[0,y] = label;
                 }
 
                 //Inferior Right Corner 
                 dataPtr = (byte*)mStart.imageData.ToPointer();
-                dataPtr += widthStep * (height-1) + nChan * (height-1);                             
-                top = matrix[x, y-1];
-                left = matrix[x - 1, y];
-                label = width * height;
-                if (top != 0 && top < label)
-                {
-                    label = top;
-                }
-                if (left != 0 && left < label)
-                {
-                    label = left;
-                }
+                dataPtr += widthStep * (height-1) + nChan * (height-1);    
+                x = width-1;
+                y = height-1;
+                if (dataPtr[0] != bBack || dataPtr[1] != gBack || dataPtr[2] != rBack){
+                    top = matrix[x, y-1];
+                    left = matrix[x - 1, y];
+                    label = width * height;
+                    if (top != 0 && top < label)
+                    {
+                        label = top;
+                    }
+                    if (left != 0 && left < label)
+                    {
+                        label = left;
+                    }
+
+                    matrix[x,y] = label;
+                }        
 
                 //Construir inicio de cada imagem
                 int currentLabel = 0;
@@ -684,7 +698,7 @@ namespace SS_OpenCV
                 {
                     for (x = 0; x < width && numberImages != currentLabel; x++)
                     {
-                        if (matrix[x, y] != currentLabel)
+                        if (matrix[x, y] > currentLabel && matrix[x,y] != 0)
                         {
                             Pieces_positions[currentLabel][0] = x; //xStart
                             Pieces_positions[currentLabel][1] = y; //yStart
@@ -694,19 +708,20 @@ namespace SS_OpenCV
                 }
 
                 //Construir fim de cada imagem
-                currentLabel = 0;
-                for (y = height - 1; y >= 0 && numberImages != currentLabel ; y--)
+                currentLabel = numberImages+1;
+                for (y = height - 1; y >= 0 && currentLabel != 1 ; y--)
                 {
-                    for (x = width - 1; x >= 0 && numberImages != currentLabel; x--)
+                    for (x = width - 1; x >= 0 && currentLabel != 1; x--)
                     {
-                        if (matrix[x, y] != currentLabel)
+                        if (matrix[x, y] < currentLabel && matrix[x,y] != 0)
                         {
                             Pieces_positions[currentLabel][2] = x; //xEnd
                             Pieces_positions[currentLabel][3] = y; //yEnd
-                            currentLabel++;
+                            currentLabel--;
                         }
                     }
                 }
+
                 return Pieces_positions;
             }
         }
