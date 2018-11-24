@@ -218,6 +218,29 @@ namespace SS_OpenCV
             Histogram h = new Histogram(arr);
             h.Show();
         }
+
+        private void imageToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void puzzleToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            if (img == null) // verify if the image is already opened
+                return;
+            Cursor = Cursors.WaitCursor; // clock cursor 
+
+            //copy Undo Image
+            imgUndo = img.Copy();
+
+            System.Collections.Generic.List<int[]> Pieces_position = null;
+            System.Collections.Generic.List<int> pieces_angle = null;
+
+            ImageViewer.Image = ImageClass.puzzle(img, img, out Pieces_position, out pieces_angle, 1).Bitmap;
+            ImageViewer.Refresh(); // refresh image on the screen
+
+            Cursor = Cursors.Default; // normal cursor 
+        }
     }
 
 
