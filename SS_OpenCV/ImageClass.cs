@@ -27,18 +27,28 @@ namespace SS_OpenCV
             //Pieces_positions.Add(piece_vector);
 
             Pieces_angle = new List<int>(); 
-            Pieces_angle.Add(0); // angle
-            Pieces_positions = null;
+            
+            Pieces_positions = new List<int[]>();
+            int[,] matrix = null;
+            int numberImages = 0;
 
             if (level == 1)
-            {                
-                Pieces_positions = imageFinderLevel1(dummyImg);
+            {             
+                matrix = imageFinder(dummyImg, Pieces_positions, out numberImages);
+                int width = img.Width;
+                int height = img.Height;
+                Pieces_positions = GetPositions(matrix,height,width,numberImages,Pieces_positions);
+
+
+                for(int i = 0;i<Pieces_positions.Count;i++) {
+                    Pieces_angle.Add(0);
+                }  
                 dummyImg = joinPiecesLevel1(Pieces_positions, img);
             }
 
             else if (level == 2)
             {
-                Pieces_positions = imageFinderLevel1(dummyImg);
+                matrix = imageFinder(dummyImg,Pieces_positions, out numberImages);
                 //dummyImg = joinPiecesLevel2(Pieces_positions, img);
             }
 
@@ -49,55 +59,6 @@ namespace SS_OpenCV
 
             return dummyImg;
         }
-
-        // public static Image<Bgr, byte> joinPiecesLevel2(List<int[]> pieces_positions, Image<Bgr, byte> img) {
-        //     Image<Bgr, byte> dummyImg = img.Copy();
-
-        //     //Array for each piece, with the index of the pieces it is connected to,
-        //     //The order of the sides should be [top, right, bottom, left]
-        //     //If a side isnt connected it should have the value -1
-        //     List<int[]> jointSides = new List<int[]>();
-
-        //     //Initiate the array with -1 for each side of each piece of the pieces_positions
-        //     //Meaning no pieces are connected together            
-        //     jointSides = initJoinedSides(pieces_positions);
-
-        //     //Lower proximity value means higher degree of similarity             
-        //     List<int[]> proximityValues = new List<int[]>();
-
-        //     proximityValues = initProximityValues(pieces_positions);            
-
-        //     for (int i = 0; i < pieces_positions.Count - 1; i++)
-        //     {
-        //         for (int j = i + 1; j < pieces_positions.Count; j++)
-        //             {
-        //                 /*if (canJoinPieces(Pieces_positions[i], Pieces_positions[j])) {
-                            
-        //                     joinPieces(Pieces_positions[i], Pieces_positions[j]);
-        //                     // if(joinsCount == Pieces_positions.Count-1) {
-        //                     // }
-        //                 }*/
-
-        //                 //check if top is already joined
-        //                 if (canJoinTopWithBottom(pieces_positions[i], pieces_positions[j]))
-        //                 {
-
-        //                 }
-
-        //                 //top with others bottom
-        //                 /* if(canJoinTopWithBottom(Pieces_positions[i], Pieces_positions[j])) {
-
-        //                 }*/
-        //                 //right with others left
-
-        //                 //bottom with others top
-
-        //                 //left with others right
-        //             }
-        //         }                            
-
-        //     return dummyImg;                        
-        // }
 
         /// </summary>
         /// Function that, given an array of ints, checks wich index has the smallest number.
@@ -117,7 +78,6 @@ namespace SS_OpenCV
                     smallestValue = differences[i];                    
                 }
             }
-
             return smallestIndex;                            
         }    
 
@@ -183,7 +143,7 @@ namespace SS_OpenCV
                     differencesTopBottom = checkTopBottom(pieces_positions, img);
 
                     if(differencesTopBottom[0] < differencesTopBottom[1]){
-                        dummyImg = joinTopBottom(pieces_positions[1][0], pieces_positions[1][1], pieces_positions[0][0], pieces_positions[0][1],widthPiece1,widthPiece2,heightPiece1,heightPiece2, img);
+                        dummyImg = joinTopBottom(pieces_positions[1][0], pieces_positions[1][1], pieces_positions[0][0], pieces_positions[0][1],widthPiece2,widthPiece1,heightPiece2,heightPiece1, img);
                     } else {
                         dummyImg = joinTopBottom(pieces_positions[0][0], pieces_positions[0][1], pieces_positions[1][0], pieces_positions[1][1],widthPiece1,widthPiece2,heightPiece1,heightPiece2, img);                    
                     }
@@ -195,10 +155,10 @@ namespace SS_OpenCV
                     differencesLeftRight = checkLeftRightSides(pieces_positions, img);
 
                     if(differencesLeftRight[0] < differencesLeftRight[1]){
-                        dummyImg = joinLeftRight(pieces_positions[1][0], pieces_positions[1][1], pieces_positions[0][0], pieces_positions[0][1],widthPiece1,widthPiece2,heightPiece1,heightPiece2, img);
+                        dummyImg = joinLeftRight(pieces_positions[1][0], pieces_positions[1][1], pieces_positions[0][0], pieces_positions[0][1],widthPiece2,widthPiece1,heightPiece2,heightPiece1, img);
                     } else{
                         dummyImg = joinLeftRight(pieces_positions[0][0], pieces_positions[0][1], pieces_positions[1][0], pieces_positions[1][1],widthPiece1,widthPiece2,heightPiece1,heightPiece2, img);
-                    }                             
+                    }                              
                 }
             } 
 
@@ -250,26 +210,23 @@ namespace SS_OpenCV
             unsafe{
                 MIplImage m = img.MIplImage;
                 int nChan = m.nChannels;
-                int widthStep = m.widthStep;
-                int totalWidth = width1 + width2;
+                int totalWidth = width1;
                 int totalHeight = height1 + height2;
                 int widthStepPuzzle = m.widthStep;
-                int paddingPuzzle = widthStepPuzzle - nChan * m.width;
-                int padding = widthStep - nChan * totalWidth;
                 int x, y;
 
                 Image<Bgr, byte> dummyImg = new Image<Bgr, byte>(totalWidth, totalHeight);
                 MIplImage m2 = dummyImg.MIplImage;
                 byte* dataPtrDummy = (byte*)m2.imageData.ToPointer();
                 int widthStepDummy = m2.widthStep;
-                int paddingDummy = widthStepDummy - nChan * width1;
+                int paddingDummy = widthStepDummy - nChan * totalWidth;
 
                 //Pointer of the top piece
                 byte* dataPtr1 = (byte*)m.imageData.ToPointer();
-                dataPtr1 += nChan * topX + widthStep * topY;
+                dataPtr1 += nChan * topX + widthStepPuzzle * topY;
                 //Pointer of the bottom piece
                 byte* dataPtr2 = (byte*)m.imageData.ToPointer();
-                dataPtr2 += nChan * botX + widthStep * botY;
+                dataPtr2 += nChan * botX + widthStepPuzzle * botY;
 
             
                 //Copies to dummyImg the top piece
@@ -288,9 +245,9 @@ namespace SS_OpenCV
                 }
 
                 //Copies to dummyImg the bottomPiece
-                for(y=botY; y<totalHeight; y++){
+                for(y=height1; y<totalHeight; y++){
 
-                    for(x=width1; x<totalWidth; x++){
+                    for(x=0; x<totalWidth; x++){
                         dataPtrDummy[0] = dataPtr2[0];
                         dataPtrDummy[1] = dataPtr2[1];
                         dataPtrDummy[2] = dataPtr2[2];
@@ -320,26 +277,23 @@ namespace SS_OpenCV
             unsafe{
                 MIplImage m = img.MIplImage; //original puzzle image
                 int nChan = m.nChannels;
-                int widthStep = m.widthStep;
                 int totalWidth = width1+width2;
-                int totalHeight = height1+height2;
+                int totalHeight = height1;
                 int widthStepPuzzle = m.widthStep;
-                int paddingPuzzle = widthStepPuzzle - nChan * m.width;
-                int padding = widthStep - nChan * totalWidth;
                 int x, y;
 
                 Image<Bgr, byte> dummyImg = new Image<Bgr, byte>(totalWidth, totalHeight); //create empty image which will be the joint image later on
                 MIplImage m2 = dummyImg.MIplImage;
                 byte* dataPtrDummy = (byte*)m2.imageData.ToPointer();
                 int widthStepDummy = m2.widthStep;
-                int paddingDummy = widthStepDummy - nChan * width1;
+                int paddingDummy = widthStepDummy - nChan * totalWidth;
 
                 //Pointer of the left piece
                 byte* dataPtr1 = (byte*)m.imageData.ToPointer();
-                dataPtr1 += nChan * leftX + widthStep * leftY;
+                dataPtr1 += nChan * leftX + widthStepPuzzle * leftY;
                 //Pointer of the right piece
                 byte* dataPtr2 = (byte*)m.imageData.ToPointer();
-                dataPtr2 += nChan * rightX + widthStep * rightY;
+                dataPtr2 += nChan * rightX + widthStepPuzzle * rightY;
 
                 for(y=0; y<totalHeight; y++){
                     //Coppies to dummyImg the left piece
@@ -360,56 +314,14 @@ namespace SS_OpenCV
                         dataPtrDummy += nChan;
                     }
 
-                    dataPtr1 += widthStepPuzzle - (width1*nChan );
-                    dataPtr2 += widthStepPuzzle - (width2*nChan );
+                    dataPtr1 += widthStepPuzzle - (width1*nChan);
+                    dataPtr2 += widthStepPuzzle - (width2*nChan);
                     dataPtrDummy += paddingDummy;
                 }
 
                 return dummyImg;
             }
-        }        
-
-        // //Isto esta aqui a fazer o que?? Estava fora de função, meti aqui dentro        
-        // public static void wtf(){
-        //     //Meaning no pieces are connected together            
-        //     joinedSides = initJoinedSides(pieces_positions);
-
-        //     //Lower proximity value means higher degree of similarity             
-        //     List<int[]> proximityValues = new List<int[]>();
-
-        //     proximityValues = initProximityValues(pieces_positions);            
-
-        //     for (int i = 0; i < Pieces_positions.Count - 1; i++)
-        //     {
-        //         for (int j = i + 1; j < Pieces_positions.Count; j++)
-        //             {
-        //                 /*if (canJoinPieces(Pieces_positions[i], Pieces_positions[j])) {
-                            
-        //                     joinPieces(Pieces_positions[i], Pieces_positions[j]);
-        //                     // if(joinsCount == Pieces_positions.Count-1) {
-        //                     // }
-        //                 }*/
-
-        //                 //check if top is already joined
-        //                 if (canJoinTopWithBottom(pieces_positions[i], pieces_positions[j]))
-        //                 {
-
-        //                 }
-
-        //                 //top with others bottom
-        //                 /* if(canJoinTopWithBottom(Pieces_positions[i], Pieces_positions[j])) {
-
-        //                 }*/
-        //                 //right with others left
-
-        //                 //bottom with others top
-
-        //                 //left with others right
-        //             }
-        //         }                            
-
-        //     //return dummyImg;          
-        // }              
+        }                   
         
         public static int[] checkLeftRightSides(List<int[]> pieces_positions, Image<Bgr,byte> img) {
             unsafe {
@@ -438,16 +350,19 @@ namespace SS_OpenCV
                 dataPtr1 += widthStep * y1Start + nChan * x1Start;
                 dataPtr2 += widthStep * y2Start + nChan * x2End;
                 for(int y=y1Start;y<y1End;y++) {
-                    differencesLeftRight[0] += (dataPtr2[0] - dataPtr1[0]) + (dataPtr2[1] - dataPtr1[1]) + (dataPtr2[2] - dataPtr1[2]);
+                    differencesLeftRight[0] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
                     dataPtr1 += widthStep;
                     dataPtr2 += widthStep;
                 }
+
+                dataPtr1 = (byte*)m.imageData.ToPointer();
+                dataPtr2 = (byte*)m.imageData.ToPointer();
 
                 //Compare right of image1 to left of image2
                 dataPtr1 += widthStep * y1Start + nChan * x1End;
                 dataPtr2 += widthStep * y2Start + nChan * x2Start;
                 for(int y=y1Start;y<y1End;y++) {
-                    differencesLeftRight[1] += (dataPtr2[0] - dataPtr1[0]) + (dataPtr2[1] - dataPtr1[1]) + (dataPtr2[2] - dataPtr1[2]);
+                    differencesLeftRight[1] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
                     dataPtr1 += widthStep;
                     dataPtr2 += widthStep;
                 }
@@ -481,17 +396,21 @@ namespace SS_OpenCV
                 //Compare top of image1 to bottom of image2
                 dataPtr1 += widthStep * y1Start + nChan * x1Start;
                 dataPtr2 += widthStep * y2End + nChan * x2Start;
+                //Meter valor absoluto!
                 for(int x=x1Start;x<x1End;x++) {
-                    differencesTopBottom[0] += (dataPtr2[0] - dataPtr1[0]) + (dataPtr2[1] - dataPtr1[1]) + (dataPtr2[2] - dataPtr1[2]);
+                    differencesTopBottom[0] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
                     dataPtr1 += nChan;
                     dataPtr2 += nChan;
                 }
+
+                dataPtr1 = (byte*)m.imageData.ToPointer();
+                dataPtr2 = (byte*)m.imageData.ToPointer();
 
                 //Compare bottom of image1 to top of image2
                 dataPtr1 += widthStep * y1End + nChan * x1Start;
                 dataPtr2 += widthStep * y2Start + nChan * x2Start;
                 for(int x=x1Start;x<x1End;x++) {
-                    differencesTopBottom[1] += (dataPtr2[0] - dataPtr1[0]) + (dataPtr2[1] - dataPtr1[1]) + (dataPtr2[2] - dataPtr1[2]);
+                    differencesTopBottom[1] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
                     dataPtr1 += nChan;
                     dataPtr2 += nChan;
                 }
@@ -499,7 +418,7 @@ namespace SS_OpenCV
             }
         }
 
-        public static List<int[]> imageFinderLevel1(Image<Bgr, byte> img)
+        public static int[,] imageFinder(Image<Bgr, byte> img, List<int[]> Pieces_positions, out int numberImages)
         {
             unsafe
             {
@@ -512,8 +431,7 @@ namespace SS_OpenCV
                 int bBack = dataPtr[0];
                 int gBack = dataPtr[1];
                 int rBack = dataPtr[2];
-                int numberImages = 0;
-                List<int[]> Pieces_positions = new List<int[]>();
+                numberImages = 0;
 
                 int nChan = mStart.nChannels;
                 int padding = mStart.widthStep - mStart.nChannels * mStart.width;
@@ -739,9 +657,19 @@ namespace SS_OpenCV
                     }
 
                     matrix[x,y] = label;
-                }        
+                }      
 
-                //Construir inicio de cada imagem
+                //level2, 3  
+
+                return matrix;
+            }
+        }
+        
+
+        private static List<int[]> GetPositions(int[,] matrix, int height, int width, int numberImages, List<int[]> Pieces_positions){
+            int x, y;
+            
+            //Construir inicio de cada imagem
                 int currentLabel = 0;
                 for (y = 0; y < height && numberImages != currentLabel; y++)
                 {
@@ -764,85 +692,14 @@ namespace SS_OpenCV
                     {
                         if (matrix[x, y] < currentLabel && matrix[x,y] != 0)
                         {
-                            Pieces_positions[currentLabel][2] = x; //xEnd
-                            Pieces_positions[currentLabel][3] = y; //yEnd
+                            Pieces_positions[currentLabel-2][2] = x; //xEnd
+                            Pieces_positions[currentLabel-2][3] = y; //yEnd
                             currentLabel--;
                         }
                     }
                 }
 
                 return Pieces_positions;
-            }
-        }
-
-        //Metodo feito na primeira aula, possivelmente lixo.
-        public static Image<Bgr, byte>[] createImages(Image<Bgr, byte> img)
-        {
-            unsafe
-            {
-                MIplImage mStart = img.MIplImage;
-                byte* dataPtr = (byte*)mStart.imageData.ToPointer();
-
-                int nChan = mStart.nChannels;
-                int padding = mStart.widthStep - mStart.nChannels * mStart.width;
-                int widthStep = mStart.widthStep;
-
-                //Alterar esta parte
-                int[] piece_vector = new int[8];
-                piece_vector[0] = 65;   // x- Top-Left1
-                piece_vector[1] = 385;  // y- Top-Left1
-                piece_vector[2] = 1089; // x- Bottom-Right1
-                piece_vector[3] = 1411; // y- Bottom-Right1
-
-                piece_vector[4] = 65;   // x- Top-Left2 
-                piece_vector[5] = 385;  // y- Top-Left2
-                piece_vector[6] = 1089; // x- Bottom-Right2
-                piece_vector[7] = 1411; // y- Bottom-Right2
-
-                Image<Bgr, byte> piece1 = new Image<Bgr, byte>(piece_vector[2] - piece_vector[0], piece_vector[3] - piece_vector[1]);
-                Image<Bgr, byte> piece2 = new Image<Bgr, byte>(piece_vector[6] - piece_vector[4], piece_vector[7] - piece_vector[5]);
-
-                MIplImage piece = piece1.MIplImage;
-                byte* pieceData = (byte*)piece.imageData.ToPointer();
-
-                dataPtr += nChan * piece_vector[0] + widthStep * piece_vector[1];
-
-                for (int y = piece_vector[1]; y < piece_vector[3]; y++)
-                {
-                    for (int x = piece_vector[0]; x < piece_vector[2]; x++)
-                    {
-                        pieceData = dataPtr;
-                        pieceData += nChan;
-                        dataPtr += nChan;
-                    }
-
-                    pieceData += padding;
-                    dataPtr += padding;
-                }
-
-                piece = piece2.MIplImage;
-                pieceData = (byte*)piece.imageData.ToPointer();
-                dataPtr = (byte*)mStart.imageData.ToPointer();
-                dataPtr += nChan * piece_vector[4] + widthStep * piece_vector[5];
-
-                for (int y = piece_vector[5]; y < piece_vector[7]; y++)
-                {
-                    for (int x = piece_vector[4]; x < piece_vector[6]; x++)
-                    {
-                        pieceData = dataPtr;
-                        pieceData += nChan;
-                        dataPtr += nChan;
-                    }
-
-                    pieceData += padding;
-                    dataPtr += padding;
-                }
-
-                Image<Bgr, byte>[] ret = new Image<Bgr, byte>[2];
-                ret[0] = piece1;
-                ret[1] = piece2;
-                return ret;
-            }
         }
 
         public static void Scale(Image<Bgr, byte> transformedImg, Image<Bgr, byte> startingImg, float scaleFactor)
