@@ -31,12 +31,12 @@ namespace SS_OpenCV
             Pieces_positions = new List<int[]>();
             int[,] matrix = null;
             int numberImages = 0;
+            int width = img.Width;
+            int height = img.Height;
 
             if (level == 1)
             {             
                 matrix = imageFinder(dummyImg, Pieces_positions, out numberImages);
-                int width = img.Width;
-                int height = img.Height;
                 Pieces_positions = GetPositions(matrix,height,width,numberImages,Pieces_positions);
 
 
@@ -49,7 +49,9 @@ namespace SS_OpenCV
             else if (level == 2)
             {
                 matrix = imageFinder(dummyImg,Pieces_positions, out numberImages);
-                //dummyImg = joinPiecesLevel2(Pieces_positions, img);
+                findRotations(dummyImg,Pieces_angle,matrix,numberImages);
+                Pieces_positions = GetPositions(matrix,height,width,numberImages,Pieces_positions);
+                dummyImg = joinPiecesLevel1(Pieces_positions, img);
             }
 
             else
@@ -58,6 +60,72 @@ namespace SS_OpenCV
             }
 
             return dummyImg;
+        }
+
+        private static void findRotations(Image<Bgr,byte> img, List<int> Pieces_angle, int[,] matrix, int numberImages) {
+            int currentLabel = 0;
+
+            int xTopLeft = 0;
+            int yTopLeft = 0;
+            int xTopRight = 0;
+            int yTopRight = 0;
+
+            int yBottomLeft = 0; //para calcular height
+            int[,] anglesPerLabel = new int[numberImages,5];
+
+            //Resto
+            for(int y = 0;y<img.Height;y++) {
+                for(int x = 0;x<img.Width;x++) {
+                    //TODO NAO VAI FUNCIONAR SE TIVER DUAS IMAGENS DIFERENTES QUE PARTILHEM A MESMA LINHA
+                    if(currentLabel!=matrix[x,y]) { 
+                        currentLabel=matrix[x,y];
+                        if(matrix[x,y]!=0) {
+                            xTopLeft = x;
+                            yTopLeft = y;
+                            xTopRight = x;
+                            yTopRight = y;
+                            yBottomLeft = y;
+                        }
+                    }
+                    if(x < xTopLeft) { 
+                        xTopLeft = x;
+                    }
+                    if(y > yTopLeft) {
+                        yTopLeft = y;
+                    }
+                    if(x < xTopLeft) {
+                        xTopLeft = x;
+                    }
+                    if(y > yBottomLeft) {
+                        yBottomLeft = y;
+                    }
+                }
+                anglesPerLabel[currentLabel-1,0] = xTopLeft;
+                anglesPerLabel[currentLabel-1,1] = yTopLeft;
+                anglesPerLabel[currentLabel-1,2] = xTopRight;
+                anglesPerLabel[currentLabel-1,3] = yTopRight;
+                anglesPerLabel[currentLabel-1,4] = yBottomLeft;
+            }
+
+            Image<Bgr, byte> dummyImg = new Image<Bgr, byte>(xTopRight-xTopLeft, yBottomLeft-yTopRight);
+            Image<Bgr, byte> dummyImgCopy = dummyImg.Copy();
+            int angle;
+            
+            for(int i = 0;i<numberImages;i++) {
+                xTopLeft = anglesPerLabel[i,0];
+                yTopLeft = anglesPerLabel[i,1];
+                xTopRight = anglesPerLabel[i,2];
+                yTopRight = anglesPerLabel[i,3];
+
+                if(yTopLeft == yTopRight) {
+                    Pieces_angle.Add(0);
+                } else {
+                    angle = (int)Math.Round(Math.Atan((yBottomLeft-yTopRight)*1.0/(xTopLeft-xTopRight)));
+                    Pieces_angle.Add(angle);
+                    Rotation(dummyImg,dummyImgCopy,-angle); //negativa pois vamos rodar no sentido dos ponteiros
+                    //TODO ESCREVER IMAGEM NO PUZZLE;
+                }
+            }
         }
 
         /// </summary>
@@ -445,6 +513,7 @@ namespace SS_OpenCV
                     dataPtr = (byte*)mStart.imageData.ToPointer();
                     dataPtr += nChan + widthStep;
                     changes = 0;
+
 
                     for (y = 1; y < height-1; y++)
                     {
