@@ -42,9 +42,7 @@ namespace SS_OpenCV
                 } else {
                     dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
                 }
-
-                               
-            
+                
             } else if (level == 2) {
                 matrix = imageFinder(dummyImg,Pieces_positions, out numberImages);
                 Pieces_positions = getPositions(matrix,height,width,numberImages,Pieces_positions,img);
@@ -113,45 +111,49 @@ namespace SS_OpenCV
         }
 
         //Function that is going to be used to get a rotated Piece
-        private static Image<Bgr, byte> getRotatedPiece(Image<Bgr, byte> img, int[] topRight, int[] bottomLeft, int[] Pieces_positions, int[] topLeft, int angle)){
-            int heightPiece = bottomLeft[1] - Pieces_positions[1];
-            int widthPiece = Pieces_positions[2] - topLeft[0];
-            Image<Bgr, byte> piece = new Image<Bgr, byte>(widthPiece, heightPiece);
-            MIplImage mPiece = piece.MIplImage;
-            MIplImage mImg = img.MIplImage;
-            byte* dataPtrPiece = (byte*)mPiece.imageData.ToPointer();
-            byte* dataPtrImg = (byte*)mImg.imageData.ToPointer();
-            int nChan = mImg.nChannels;
-            int widthStepImg = mImg.widthStep;
-            int widthStepPiece = mPiece.widthStep;
-            int paddingPiece = widthStepPiece - nChan * widthPiece;
-            int x,y;
+        private static Image<Bgr, byte> getRotatedPiece(Image<Bgr, byte> img, int[] topRight, int[] bottomLeft, int[] Pieces_positions, int[] topLeft, int angle){
+            unsafe
+            {
+                int heightPiece = bottomLeft[1] - Pieces_positions[1];
+                int widthPiece = Pieces_positions[2] - topLeft[0];
+                Image<Bgr, byte> piece = new Image<Bgr, byte>(widthPiece, heightPiece);
+                MIplImage mPiece = piece.MIplImage;
+                MIplImage mImg = img.MIplImage;
+                byte* dataPtrPiece = (byte*)mPiece.imageData.ToPointer();
+                byte* dataPtrImg = (byte*)mImg.imageData.ToPointer();
+                int nChan = mImg.nChannels;
+                int widthStepImg = mImg.widthStep;
+                int widthStepPiece = mPiece.widthStep;
+                int paddingPiece = widthStepPiece - nChan * widthPiece;
+                int x,y;
 
-            dataPtrImg += nChan * xTopLeft + widthStepImg * yTopRight;
+                dataPtrImg += nChan * Pieces_positions[0] + widthStepImg * topRight[1];
 
-            //Obter a moldura da imagem ainda rodada.
-            for(y=0; y<heightPiece; y++){
-                for(x=0; x<widthPiece; x++){
-                    dataPtrPiece[0] = dataPtrImg[0];
-                    dataPtrPiece[1] = dataPtrImg[1];
-                    dataPtrPiece[2] = dataPtrImg[2];
+                //Obter a moldura da imagem ainda rodada.
+                for(y=0; y<heightPiece; y++){
+                    for(x=0; x<widthPiece; x++){
+                        dataPtrPiece[0] = dataPtrImg[0];
+                        dataPtrPiece[1] = dataPtrImg[1];
+                        dataPtrPiece[2] = dataPtrImg[2];
 
-                    dataPtrPiece += nChan;
-                    dataPtrImg += nChan;
+                        dataPtrPiece += nChan;
+                        dataPtrImg += nChan;
+                    }
+
+                    dataPtrPiece += paddingPiece;
+                    dataPtrImg += widthStepImg - widthPiece + nChan;
                 }
 
-                dataPtrPiece += padding;
-                dataPtrImg += widthStep - widthPiece + nChan;
+                Image<Bgr, byte> pieceCopy = piece.Copy();
+                Rotation(piece, pieceCopy, -angle);
+                int newWidth = (int)((bottomLeft[1] - topRight[1]) / Math.Sin(angle));
+                int newHeight = (int)((bottomLeft[0] - Pieces_positions[0]) / Math.Sin(angle));
+                Image<Bgr, byte> pieceTrimmed = new Image<Bgr, byte>(newWidth, newHeight);
+                //Falta recortar as bordas da imagem.
+
+                return pieceTrimmed;
             }
-
-            Image<Bgr, byte> pieceCopy = piece.Copy();
-            Rotation(piece, pieceCopy, -angle);
-            int newWidth = (bottomLeft[1] - topRight[1]) / Math.Sin(angle);
-            int newHeight = (bottomLeft[0] - Pieces_positions[0]) / Math.SIn(angle);
-            Image<Bgr, byte> pieceTrimmed = new Image<Bgr, byte>(newWidth, newHeight);
-            //Falta recortar as bordas da imagem.
-
-            return pieceTrimmed;
+            
         }
 
         /// </summary>
