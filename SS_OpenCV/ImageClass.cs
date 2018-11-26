@@ -19,7 +19,7 @@ namespace SS_OpenCV
         {
             Image<Bgr, byte> dummyImg = img.Copy();
 
-            Pieces_angle = new List<int>(); 
+            Pieces_angle = new List<int>();
             Pieces_positions = new List<int[]>();
             int[,] matrix = null;
             int numberImages = 0;
@@ -115,11 +115,11 @@ namespace SS_OpenCV
         }
 
         //Function that is going to be used to get a rotated Piece
-        private static Image<Bgr, byte> getRotatedPiece(Image<Bgr, byte> img, int[] topRight, int[] bottomLeft, int[] Pieces_positions, int angle){
+        private static Image<Bgr, byte> getRotatedPiece(Image<Bgr, byte> img, int[] topRight, int[] bottomLeft, int[] Piece_positions, int angle){
             unsafe
             {
-                int heightPiece = bottomLeft[1] - Pieces_positions[1];
-                int widthPiece = Pieces_positions[2] - Pieces_positions[0];
+                int heightPiece = bottomLeft[1] - topRight[1];
+                int widthPiece = Piece_positions[2] - Piece_positions[0];
                 Image<Bgr, byte> piece = new Image<Bgr, byte>(widthPiece, heightPiece);
                 MIplImage mPiece = piece.MIplImage;
                 MIplImage mImg = img.MIplImage;
@@ -131,7 +131,7 @@ namespace SS_OpenCV
                 int paddingPiece = widthStepPiece - nChan * widthPiece;
                 int x,y;
 
-                dataPtrImg += nChan * Pieces_positions[0] + widthStepImg * topRight[1];
+                dataPtrImg += nChan * Piece_positions[0] + widthStepImg * topRight[1];
 
                 //Obter a moldura da imagem ainda rodada.
                 for(y=0; y<heightPiece; y++){
@@ -143,16 +143,36 @@ namespace SS_OpenCV
                         dataPtrPiece += nChan;
                         dataPtrImg += nChan;
                     }
-
                     dataPtrPiece += paddingPiece;
-                    dataPtrImg += widthStepImg - widthPiece + nChan;
+                    dataPtrImg += widthStepImg - (widthPiece * nChan);
                 }
 
                 Image<Bgr, byte> pieceCopy = piece.Copy();
-                Rotation(piece, pieceCopy, -angle);
-                // int newWidth = (int)((bottomLeft[1] - topRight[1]) / Math.Sin(angle));
-                // int newHeight = (int)((bottomLeft[0] - Pieces_positions[0]) / Math.Sin(angle));
+                Rotation(piece, pieceCopy, (float)degreesToRadians(angle));
+
+                // int newWidth = (int)Math.Ceiling((Piece_positions[2] - bottomLeft[0])/Math.Cos(degreesToRadians(angle)));
+                // int newHeight = bottomLeft[1] - Piece_positions[1];
+                
                 // Image<Bgr, byte> pieceTrimmed = new Image<Bgr, byte>(newWidth, newHeight);
+                // MIplImage mTrimmed = pieceTrimmed.MIplImage;
+                // byte* dataPtrTrimmed = (byte*)mTrimmed.imageData.ToPointer();
+                // int widthStepTrimmed = mTrimmed.widthStep;
+                // int paddingTrimmed = widthStepTrimmed - nChan * mTrimmed.width;
+
+                // dataPtrPiece += nChan * falta_calcular + widthStepImg * (topRight[1]-Piece_positions[1]);
+                // for(y=0; y<heightPiece; y++){
+                //     for(x=0; x<widthPiece; x++){
+                //         dataPtrTrimmed[0] = dataPtrPiece[0];
+                //         dataPtrTrimmed[1] = dataPtrPiece[1];
+                //         dataPtrTrimmed[2] = dataPtrPiece[2];
+
+                //         dataPtrPiece += nChan;
+                //         dataPtrTrimmed += nChan;
+                //     }
+                //     dataPtrPiece += widthStepImg - (widthPiece * nChan);
+                //     dataPtrTrimmed += paddingTrimmed;
+                // }
+
                 //Falta recortar as bordas da imagem.
 
                 return piece;
@@ -195,6 +215,10 @@ namespace SS_OpenCV
 
         private static double radiansToDegrees(double radians) {
             return radians * (180.0 / Math.PI);
+        }
+
+        private static double degreesToRadians(double degrees) {
+            return degrees * Math.PI / 180.0;
         }
 
         /// </summary>
