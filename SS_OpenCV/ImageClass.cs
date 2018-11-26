@@ -32,36 +32,35 @@ namespace SS_OpenCV
                 matrix = imageFinder(dummyImg, Pieces_positions, out numberImages);
                 Pieces_positions = getPositions(matrix,height,width,numberImages,Pieces_positions,img);
 
-                // for(currentImg = 0; currentImg<numberImages; currentImg++) {
-                //     Pieces_angle.Add(0);
-                //     pieces.Add(getNormalPiece(img, Pieces_positions[currentImg][0], Pieces_positions[currentImg][1], Pieces_positions[currentImg][2], Pieces_positions[currentImg][3]));
-                // }  
+                for(currentImg = 0; currentImg<numberImages; currentImg++) {
+                    Pieces_angle.Add(0);
+                    pieces.Add(getNormalPiece(img, Pieces_positions[currentImg][0], Pieces_positions[currentImg][1], Pieces_positions[currentImg][2], Pieces_positions[currentImg][3]));
+                }  
 
-                // if(numberImages == 1){
-                //     dummyImg = pieces[0];
-                // } else {
-                //     dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
-                // }
+                if(numberImages == 1){
+                    dummyImg = pieces[0];
+                } else {
+                    dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
+                }
 
                                
             
             } else if (level == 2) {
                 matrix = imageFinder(dummyImg,Pieces_positions, out numberImages);
                 Pieces_positions = getPositions(matrix,height,width,numberImages,Pieces_positions,img);
-                // int[,] superiorCorners = findRotations(img,Pieces_angle,matrix,numberImages);
-                // int[,] bottomCorners = getBottomRightCorners(img,matrix, numberImages);
 
-                // for(currentImg=0; currentImg<numberImages; currentImg++) {
-                //     if(Pieces_angle[currentImg] == 0){
-                //         pieces.Add(getNormalPiece(img, superiorCorners[currentImg,0], superiorCorners[currentImg,1], bottomCorners[currentImg,0], bottomCorners[currentImg,1]));
-                //     } else {
-                //         //Acabar aqui
-                //         bottomCorners = getBottomRightCorners(img,matrix,numberImages);
-                //         pieces.Add(getRotatedPiece());
-                //     }
-                // }
+                for(currentImg=0; currentImg<numberImages; currentImg++) {
+                    if(Pieces_angle[currentImg] == 0){
+                        pieces.Add(getNormalPiece(img, superiorCorners[currentImg,0], superiorCorners[currentImg,1], bottomCorners[currentImg,0], bottomCorners[currentImg,1]));
+                    
+                    } else {
+                        int[,] upperRightCorners = getUpperRightCorners(img,matrix,numberImages);
+                        int[,] bottomLeftCorners = getBottomLeftCorners(img,matrix, numberImages);
+                        pieces.Add(getRotatedPiece(img, upperRightCorners[currentImg], bottomLeftCorners[currentImg], Pieces_positions[currentImg], Pieces_angle[currentImg]));
+                    }
+                }
 
-                // dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
+                dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
             }
 
             else
@@ -114,8 +113,45 @@ namespace SS_OpenCV
         }
 
         //Function that is going to be used to get a rotated Piece
-        private static Image<Bgr, byte> getRotatedPiece(){
-            return null;
+        private static Image<Bgr, byte> getRotatedPiece(Image<Bgr, byte> img, int[] topRight, int[] bottomLeft, int[] Pieces_positions, int[] topLeft, int angle)){
+            int heightPiece = bottomLeft[1] - Pieces_positions[1];
+            int widthPiece = Pieces_positions[2] - topLeft[0];
+            Image<Bgr, byte> piece = new Image<Bgr, byte>(widthPiece, heightPiece);
+            MIplImage mPiece = piece.MIplImage;
+            MIplImage mImg = img.MIplImage;
+            byte* dataPtrPiece = (byte*)mPiece.imageData.ToPointer();
+            byte* dataPtrImg = (byte*)mImg.imageData.ToPointer();
+            int nChan = mImg.nChannels;
+            int widthStepImg = mImg.widthStep;
+            int widthStepPiece = mPiece.widthStep;
+            int paddingPiece = widthStepPiece - nChan * widthPiece;
+            int x,y;
+
+            dataPtrImg += nChan * xTopLeft + widthStepImg * yTopRight;
+
+            //Obter a moldura da imagem ainda rodada.
+            for(y=0; y<heightPiece; y++){
+                for(x=0; x<widthPiece; x++){
+                    dataPtrPiece[0] = dataPtrImg[0];
+                    dataPtrPiece[1] = dataPtrImg[1];
+                    dataPtrPiece[2] = dataPtrImg[2];
+
+                    dataPtrPiece += nChan;
+                    dataPtrImg += nChan;
+                }
+
+                dataPtrPiece += padding;
+                dataPtrImg += widthStep - widthPiece + nChan;
+            }
+
+            Image<Bgr, byte> pieceCopy = piece.Copy();
+            Rotation(piece, pieceCopy, -angle);
+            int newWidth = (bottomLeft[1] - topRight[1]) / Math.Sin(angle);
+            int newHeight = (bottomLeft[0] - Pieces_positions[0]) / Math.SIn(angle);
+            Image<Bgr, byte> pieceTrimmed = new Image<Bgr, byte>(newWidth, newHeight);
+            //Falta recortar as bordas da imagem.
+
+            return pieceTrimmed;
         }
 
         /// </summary>
@@ -892,9 +928,7 @@ namespace SS_OpenCV
 
         private static List<int[]> getPositions(int[,] matrix, int height, int width, int numberImages,List<int[]> Pieces_positions, Image<Bgr,byte> img){
 
-            int[,] upperRightCorner = getUpperRightCorners(img,matrix,numberImages); //TODO tirar
             int[,] upperLeftCorner = getUpperLeftCorners(img,matrix,numberImages);
-            int[,] lowerLeftCorner = getBottomLeftCorners(img,matrix,numberImages); //TODO tira
             int[,] lowerRightCorner = getBottomRightCorners(img,matrix,numberImages);
             int[] currPiecePositions = new int[4];
             for(int i = 0;i<numberImages;i++) {
