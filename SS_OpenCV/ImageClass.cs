@@ -47,29 +47,26 @@ namespace SS_OpenCV
                 {
                     dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
                 }
-            }
 
-            // } else if (level == 2) {
-            //     matrix = imageFinder(dummyImg,Pieces_positions, out numberImages);
-            //     Pieces_positions = getPositions(matrix,height,width,numberImages,Pieces_positions,img);
+            } else if (level == 2) {
+                matrix = imageFinder(dummyImg,Pieces_positions, out numberImages);
+                Pieces_positions = getPositions(matrix,height,width,numberImages,img);
+                List<int[]> upperRightCorners = getUpperRightCorners(img,matrix,numberImages);
+                List<int[]> bottomLeftCorners = getBottomLeftCorners(img,matrix, numberImages);
+                List<int[]> upperLeftCorners = getUpperLeftCorners(img,matrix,numberImages);
+                Pieces_angle = findRotations(img, matrix, numberImages,upperRightCorners,upperLeftCorners);
+                
+                for(currentImg=0; currentImg<numberImages; currentImg++) {
 
-            //     for(currentImg=0; currentImg<numberImages; currentImg++) {
-
-            //         if(Pieces_angle[currentImg] == 0){
-            //             pieces.Add(getNormalPiece(img, superiorCorners[currentImg,0], superiorCorners[currentImg,1], bottomCorners[currentImg,0], bottomCorners[currentImg,1]));
-
-            //         } else {
-            //             int[,] upperRightCorners = getUpperRightCorners(img,matrix,numberImages);
-            //             int[,] bottomLeftCorners = getBottomLeftCorners(img,matrix, numberImages);
-            //             pieces.Add(getRotatedPiece(img, upperRightCorners[currentImg], bottomLeftCorners[currentImg], Pieces_positions[currentImg], Pieces_angle[currentImg]));
-            //         }
-            //     }
-
-            //     dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
-            // }
-
-            else
-            {
+                    if(Pieces_angle[currentImg] == 0){
+                        pieces.Add(getNormalPiece(img, Pieces_positions[currentImg][0], Pieces_positions[currentImg][1], Pieces_positions[currentImg][2], Pieces_positions[currentImg][3]));
+                    } else {
+                        pieces.Add(getRotatedPiece(img, upperRightCorners[currentImg], bottomLeftCorners[currentImg], Pieces_positions[currentImg], Pieces_angle[currentImg]));
+                    }
+                }
+                dummyImg = pieces[1];    
+//                dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
+            }else{
 
             }
 
@@ -118,11 +115,11 @@ namespace SS_OpenCV
         }
 
         //Function that is going to be used to get a rotated Piece
-        private static Image<Bgr, byte> getRotatedPiece(Image<Bgr, byte> img, int[] topRight, int[] bottomLeft, int[] Pieces_positions, int[] topLeft, int angle){
+        private static Image<Bgr, byte> getRotatedPiece(Image<Bgr, byte> img, int[] topRight, int[] bottomLeft, int[] Pieces_positions, int angle){
             unsafe
             {
                 int heightPiece = bottomLeft[1] - Pieces_positions[1];
-                int widthPiece = Pieces_positions[2] - topLeft[0];
+                int widthPiece = Pieces_positions[2] - Pieces_positions[0];
                 Image<Bgr, byte> piece = new Image<Bgr, byte>(widthPiece, heightPiece);
                 MIplImage mPiece = piece.MIplImage;
                 MIplImage mImg = img.MIplImage;
@@ -153,12 +150,12 @@ namespace SS_OpenCV
 
                 Image<Bgr, byte> pieceCopy = piece.Copy();
                 Rotation(piece, pieceCopy, -angle);
-                int newWidth = (int)((bottomLeft[1] - topRight[1]) / Math.Sin(angle));
-                int newHeight = (int)((bottomLeft[0] - Pieces_positions[0]) / Math.Sin(angle));
-                Image<Bgr, byte> pieceTrimmed = new Image<Bgr, byte>(newWidth, newHeight);
+                // int newWidth = (int)((bottomLeft[1] - topRight[1]) / Math.Sin(angle));
+                // int newHeight = (int)((bottomLeft[0] - Pieces_positions[0]) / Math.Sin(angle));
+                // Image<Bgr, byte> pieceTrimmed = new Image<Bgr, byte>(newWidth, newHeight);
                 //Falta recortar as bordas da imagem.
 
-                return pieceTrimmed;
+                return piece;
             }
             
         }
@@ -170,49 +167,8 @@ namespace SS_OpenCV
         /// <param name="Pieces_angle">The list to be filled with each piece's angle</param>
         /// <param name="matrix">The matrix with labels</param>
         /// <param name="numberImages">The number of pieces in the image</param>
-        private static int[,] findRotations(Image<Bgr,byte> img, List<int> Pieces_angle, int[,] matrix, int numberImages) {
-            int x, y;
-            int height = img.Height;
-            int width = img.Width;
-
-            // Index 0 - x of upper left corner
-            // Index 1 - y of upper left corner
-            // Index 2 - x of upper right corner
-            // Index 3 - y of upper right corner
-            int[,] superiorCorners = new int[numberImages, 4];
-
-            //Finds superior left corner of each peace
-            int currentLabel = 0;
-
-            for (y=0; y<height && numberImages!=currentLabel; y++) {
-                for (x=0; x<width && numberImages!=currentLabel; x++) {
-                    if (matrix[x, y] > currentLabel && matrix[x,y] != 0) {
-                        superiorCorners[currentLabel,0] = x;
-                        superiorCorners[currentLabel,1] = y;
-                        currentLabel++;
-                    }
-                }
-            }
-
-            //Finds superior right corner of each piece
-            int[] checkedLabels = new int[numberImages];
-            int checkCount = 0;
-            currentLabel=0;
-
-            for (y=0; y<height && checkCount!=numberImages; y++) {
-                for (x=width-1; x<=0 && checkCount!=numberImages; x++) {
-                    if (matrix[x, y] != currentLabel && matrix[x,y] != 0) {
-                        currentLabel = matrix[x,y];
-                        
-                        if(checkedLabels[currentLabel] == 0){
-                            superiorCorners[currentLabel,2] = x;
-                            superiorCorners[currentLabel,3] = y;
-                            checkedLabels[currentLabel] = 1;
-                            checkCount++;
-                        }
-                    }
-                }
-            }
+        private static List<int> findRotations(Image<Bgr,byte> img, int[,] matrix, int numberImages, List<int[]> upperRightCorners, List<int[]> upperLeftCorners) {
+            List<int> Pieces_angle = new List<int>();
 
             //Gets the angle of rotation of each image
             int angle;
@@ -222,20 +178,23 @@ namespace SS_OpenCV
             int yTopRight = 0;
 
             for(int i = 0;i<numberImages;i++) {
-                xTopLeft = superiorCorners[i,0];
-                yTopLeft = superiorCorners[i,1];
-                xTopRight = superiorCorners[i,2];
-                yTopRight = superiorCorners[i,3];
+                xTopLeft = upperLeftCorners[i][0];
+                yTopLeft = upperLeftCorners[i][1];
+                xTopRight = upperRightCorners[i][0];
+                yTopRight = upperRightCorners[i][1];
 
                 if(yTopLeft == yTopRight) {
                     Pieces_angle.Add(0);
                 } else {
-                    angle = (int)Math.Round(Math.Atan((yTopLeft-yTopRight)*1.0/(xTopRight-xTopLeft)));
+                    angle = (int)radiansToDegrees(Math.Atan((yTopLeft-yTopRight)*1.0/(xTopRight-xTopLeft)));
                     Pieces_angle.Add(angle);
                 }
             }
+            return Pieces_angle;
+        }
 
-            return superiorCorners;
+        private static double radiansToDegrees(double radians) {
+            return radians * (180.0 / Math.PI);
         }
 
         /// </summary>
@@ -243,24 +202,33 @@ namespace SS_OpenCV
         /// </summary>
         /// <param name="matrix">The matrix with labels</param>
         /// <param name="numberImages">The number of pieces in the image</param>
-        private static int[,] getBottomRightCorners(Image<Bgr,byte> img, int[,] matrix, int numberImages) {
-            int[,] bottomCorners = new int[numberImages, 2];
+        private static List<int[]> getBottomRightCorners(Image<Bgr,byte> img, int[,] matrix, int numberImages) {
+            List<int[]> bottomCorners = new List<int[]>(numberImages);
+            int[] a = new int[1];
+
+            for(int i = 0; i < numberImages; i++){
+                bottomCorners.Add(a);
+            }
+            
             int height = img.Height;
             int width = img.Width;
             int x,y;
             int currentLabel = 0;
             int[] seen = new int[numberImages];
             int numberSeen = 0;
+            int[] coords = new int[2];
 
             for (x=width-1; x>=0 && numberImages != numberSeen; x--) {
                 for (y=height-1; y >= 0 && numberImages != numberSeen ; y--) {
                     int label = matrix[x, y];
                     if (label != currentLabel && label != 0 && seen[label-1] == 0) {
-                        bottomCorners[label-1,0] = x; 
-                        bottomCorners[label-1,1] = y;
+                        coords[0] = x; 
+                        coords[1] = y;
+                        bottomCorners[label-1] = coords;
                         currentLabel = label;
                         seen[label-1] = 1;
                         numberSeen++;
+                        coords = new int[2];
                     }
                 }
             }
@@ -272,24 +240,33 @@ namespace SS_OpenCV
         /// </summary>
         /// <param name="matrix">The matrix with labels</param>
         /// <param name="numberImages">The number of pieces in the image</param>
-        private static int[,] getBottomLeftCorners(Image<Bgr,byte> img, int[,] matrix, int numberImages) {
-            int[,] bottomCorners = new int[numberImages, 2];
+        private static List<int[]> getBottomLeftCorners(Image<Bgr,byte> img, int[,] matrix, int numberImages) {
+            List<int[]> bottomCorners = new List<int[]>(numberImages);
+            int[] a = new int[1];
+
+            for(int i = 0; i < numberImages; i++){
+                bottomCorners.Add(a);
+            }
+
             int height = img.Height;
             int width = img.Width;
             int x,y;
             int currentLabel = 0;
             int[] seen = new int[numberImages];
             int numberSeen = 0;
+            int[] coords = new int[2];
 
             for (y = height - 1; y >= 0 && numberImages != numberSeen ; y--) {
                 for (x = 0; x < width && numberImages != numberSeen; x++) {
                     int label = matrix[x, y];
                     if (label != currentLabel && label != 0 && seen[label-1] == 0) {
-                        bottomCorners[label-1,0] = x; 
-                        bottomCorners[label-1,1] = y;
+                        coords[0] = x; 
+                        coords[1] = y;
+                        bottomCorners[label-1] = coords;
                         currentLabel = label;
                         seen[label-1] = 1;
                         numberSeen++;
+                        coords = new int[2];
                     }
                 }
             }
@@ -301,24 +278,33 @@ namespace SS_OpenCV
         /// </summary>
         /// <param name="matrix">The matrix with labels</param>
         /// <param name="numberImages">The number of pieces in the image</param>
-        private static int[,] getUpperLeftCorners(Image<Bgr,byte> img, int[,] matrix, int numberImages) {
-            int[,] upperCorners = new int[numberImages, 2];
+        private static List<int[]> getUpperLeftCorners(Image<Bgr,byte> img, int[,] matrix, int numberImages) {
+            List<int[]> upperCorners = new List<int[]>(numberImages);
+            int[] a = new int[1];
+
+            for(int i = 0; i < numberImages; i++){
+                upperCorners.Add(a);
+            }
+
             int height = img.Height;
             int width = img.Width;
             int x,y;
             int currentLabel = 0;
             int[] seen = new int[numberImages];
             int numberSeen = 0;
+            int[] coords = new int[2];
 
             for (x = 0; x < width && numberImages != numberSeen; x++) {
                 for (y = 0; y < height && numberImages != numberSeen; y++) {
                     int label = matrix[x, y];
                     if (label != currentLabel && label != 0 && seen[label-1] == 0) {
-                        upperCorners[label-1,0] = x; //xStart
-                        upperCorners[label-1,1] = y; //yStart
+                        coords[0] = x; //xStart
+                        coords[1] = y; //yStart
+                        upperCorners[label-1] = coords;
                         currentLabel = label;
                         seen[label-1] = 1;
                         numberSeen++;
+                        coords = new int[2];
                     }
                 }
             }
@@ -330,24 +316,33 @@ namespace SS_OpenCV
         /// </summary>
         /// <param name="matrix">The matrix with labels</param>
         /// <param name="numberImages">The number of pieces in the image</param>
-        private static int[,] getUpperRightCorners(Image<Bgr,byte> img, int[,] matrix, int numberImages) {
-            int[,] upperCorners = new int[numberImages, 2];
+        private static List<int[]> getUpperRightCorners(Image<Bgr,byte> img, int[,] matrix, int numberImages) {
+            List<int[]> upperCorners = new List<int[]>(numberImages);
+            int[] a = new int[1];
+
+            for(int i = 0; i < numberImages; i++){
+                upperCorners.Add(a);
+            }
+            
             int height = img.Height;
             int width = img.Width;
             int x,y;
             int currentLabel = 0;
             int[] seen = new int[numberImages];
             int numberSeen = 0;
+            int[] coords = new int[2];
             
             for (y=0; y<height && numberImages != numberSeen; y++) {
                 for (x = width-1; x>=0 && numberImages != numberSeen; x--) {
                     int label = matrix[x, y];
                     if (label != currentLabel && label != 0 && seen[label-1] == 0) {
-                        upperCorners[label-1,0] = x; //xStart
-                        upperCorners[label-1,1] = y; //yStart
+                        coords[0] = x; //xStart
+                        coords[1] = y; //yStart
+                        upperCorners[label-1] = coords;
                         currentLabel = label;
                         seen[label-1] = 1;
                         numberSeen++;
+                        coords = new int[2];
                     }
                 }
             }
@@ -935,14 +930,15 @@ namespace SS_OpenCV
 
         private static List<int[]> getPositions(int[,] matrix, int height, int width, int numberImages, Image<Bgr,byte> img){
             List<int[]> Pieces_positions = new List<int[]>();
-            int[,] upperLeftCorner = getUpperLeftCorners(img,matrix,numberImages);
-            int[,] lowerRightCorner = getBottomRightCorners(img,matrix,numberImages);
+            List<int[]> upperLeftCorner = getUpperLeftCorners(img,matrix,numberImages);
+            List<int[]> lowerRightCorner = getBottomRightCorners(img,matrix,numberImages);
             int[] currPiecePositions = new int[4];
+
             for(int i = 0;i<numberImages;i++) {
-                currPiecePositions[0] = upperLeftCorner[i,0];
-                currPiecePositions[1] = upperLeftCorner[i,1];
-                currPiecePositions[2] = lowerRightCorner[i,0];
-                currPiecePositions[3] = lowerRightCorner[i,1];
+                currPiecePositions[0] = upperLeftCorner[i][0];
+                currPiecePositions[1] = upperLeftCorner[i][1];
+                currPiecePositions[2] = lowerRightCorner[i][0];
+                currPiecePositions[3] = lowerRightCorner[i][1];
                 Pieces_positions.Add(currPiecePositions);
                 currPiecePositions = new int[4];
             }
