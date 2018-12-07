@@ -20,6 +20,7 @@ namespace SS_OpenCV
             Image<Bgr, byte> dummyImg = img.Copy();
 
             Pieces_angle = new List<int>();
+            List<double> Pieces_angle_precise = new List<double>();
             Pieces_positions = new List<int[]>();
             int[,] matrix = null;
             int numberImages = 0;
@@ -35,7 +36,7 @@ namespace SS_OpenCV
 
                 for (currentImg = 0; currentImg < numberImages; currentImg++)
                 {
-                    Pieces_angle.Add(0);
+                    Pieces_angle_precise.Add(0.0f);
                     pieces.Add(getNormalPiece(img, Pieces_positions[currentImg][0], Pieces_positions[currentImg][1], Pieces_positions[currentImg][2], Pieces_positions[currentImg][3]));
                 }
 
@@ -54,20 +55,24 @@ namespace SS_OpenCV
                 List<int[]> upperRightCorners = getUpperRightCorners(img,matrix,numberImages);
                 List<int[]> bottomLeftCorners = getBottomLeftCorners(img,matrix, numberImages);
                 List<int[]> upperLeftCorners = getUpperLeftCorners(img,matrix,numberImages);
-                Pieces_angle = findRotations(img, matrix, numberImages,upperRightCorners,upperLeftCorners);
+                Pieces_angle_precise = findRotations(img, matrix, numberImages,upperRightCorners,upperLeftCorners);
                 
                 for(currentImg=0; currentImg<numberImages; currentImg++) {
 
-                    if(Pieces_angle[currentImg] == 0){
+                    if(Pieces_angle_precise[currentImg] == 0){
                         pieces.Add(getNormalPiece(img, Pieces_positions[currentImg][0], Pieces_positions[currentImg][1], Pieces_positions[currentImg][2], Pieces_positions[currentImg][3]));
                     } else {
-                        pieces.Add(getRotatedPiece(img, upperRightCorners[currentImg], bottomLeftCorners[currentImg], Pieces_positions[currentImg], Pieces_angle[currentImg]));
+                        pieces.Add(getRotatedPiece(img, upperRightCorners[currentImg], bottomLeftCorners[currentImg], Pieces_positions[currentImg], Pieces_angle_precise[currentImg]));
                     }
                 }
                 dummyImg = pieces[1];    
 //                dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
             }else{
 
+            }
+
+            foreach(int angle in Pieces_angle_precise) {
+                Pieces_angle.Add(angle);
             }
 
             return dummyImg;
@@ -115,7 +120,7 @@ namespace SS_OpenCV
         }
 
         //Function that is going to be used to get a rotated Piece
-        private static Image<Bgr, byte> getRotatedPiece(Image<Bgr, byte> img, int[] topRight, int[] bottomLeft, int[] Piece_positions, int angle){
+        private static Image<Bgr, byte> getRotatedPiece(Image<Bgr, byte> img, int[] topRight, int[] bottomLeft, int[] Piece_positions, double angle){
             unsafe
             {
                 int heightPiece = bottomLeft[1] - topRight[1];
@@ -130,6 +135,11 @@ namespace SS_OpenCV
                 int widthStepPiece = mPiece.widthStep;
                 int paddingPiece = widthStepPiece - nChan * widthPiece;
                 int x,y;
+                byte[] background = new byte[3];
+
+                background[0] = dataPtrImg[0];
+                background[1] = dataPtrImg[1];
+                background[2] = dataPtrImg[2];
 
                 dataPtrImg += nChan * Piece_positions[0] + widthStepImg * topRight[1];
 
@@ -148,7 +158,11 @@ namespace SS_OpenCV
                 }
 
                 Image<Bgr, byte> pieceCopy = piece.Copy();
-                Rotation(piece, pieceCopy, (float)degreesToRadians(angle));
+                Rotation(piece, pieceCopy, (float)angle, background);
+                // dataPtrImg = (byte*)mImg.imageData.ToPointer();
+                // Bgr mBg = new Bgr(dataPtrImg[0],dataPtrImg[1],dataPtrImg[2]);
+                // System.Drawing.PointF p = new System.Drawing.PointF(widthPiece/2.0f,heightPiece/2.0f);
+                // pieceCopy = piece.Rotate(radiansToDegrees(angle),p,Emgu.CV.CvEnum.INTER.CV_INTER_LINEAR,mBg,false);
 
                 // int newWidth = (int)Math.Ceiling((Piece_positions[2] - bottomLeft[0])/Math.Cos(degreesToRadians(angle)));
                 // int newHeight = bottomLeft[1] - Piece_positions[1];
@@ -187,11 +201,11 @@ namespace SS_OpenCV
         /// <param name="Pieces_angle">The list to be filled with each piece's angle</param>
         /// <param name="matrix">The matrix with labels</param>
         /// <param name="numberImages">The number of pieces in the image</param>
-        private static List<int> findRotations(Image<Bgr,byte> img, int[,] matrix, int numberImages, List<int[]> upperRightCorners, List<int[]> upperLeftCorners) {
-            List<int> Pieces_angle = new List<int>();
+        private static List<double> findRotations(Image<Bgr,byte> img, int[,] matrix, int numberImages, List<int[]> upperRightCorners, List<int[]> upperLeftCorners) {
+            List<double> Pieces_angle = new List<double>();
 
             //Gets the angle of rotation of each image
-            int angle;
+            double angle;
             int xTopLeft = 0;
             int yTopLeft = 0;
             int xTopRight = 0;
@@ -206,7 +220,7 @@ namespace SS_OpenCV
                 if(yTopLeft == yTopRight) {
                     Pieces_angle.Add(0);
                 } else {
-                    angle = (int)radiansToDegrees(Math.Atan((yTopLeft-yTopRight)*1.0/(xTopRight-xTopLeft)));
+                    angle = Math.Atan((yTopLeft-yTopRight)*1.0/(xTopRight-xTopLeft));
                     Pieces_angle.Add(angle);
                 }
             }
@@ -246,7 +260,7 @@ namespace SS_OpenCV
                 for (y=height-1; y >= 0 && numberImages != numberSeen ; y--) {
                     int label = matrix[x, y];
                     if (label != currentLabel && label != 0 && seen[label-1] == 0) {
-                        coords[0] = x; 
+                        coords[0] = x;
                         coords[1] = y;
                         bottomCorners[label-1] = coords;
                         currentLabel = label;
@@ -675,6 +689,22 @@ namespace SS_OpenCV
         {
             unsafe
             {
+                // MIplImage mStart = img.MIplImage;
+                // byte* dataPtr = (byte*)mStart.imageData.ToPointer();
+                // int width = img.Width;
+                // int height = img.Height;
+                // int changes = 1;
+                // int bBack = dataPtr[0];
+                // int gBack = dataPtr[1];
+                // int rBack = dataPtr[2];
+                
+
+                // int nChan = mStart.nChannels;
+                // int padding = mStart.widthStep - mStart.nChannels * mStart.width;
+                // int widthStep = mStart.widthStep;
+                // int x, y;
+                // int left, bottom, right, top, label, topLeft, topRight;
+
                 MIplImage mStart = img.MIplImage;
                 byte* dataPtr = (byte*)mStart.imageData.ToPointer();
                 int width = img.Width;
@@ -691,8 +721,8 @@ namespace SS_OpenCV
                 int widthStep = mStart.widthStep;
                 int x, y;
                 int left, bottom, right, top, label, topLeft, topRight, botLeft, botRight;
-                
-                //Algoritmo dos componentes ligados
+
+                //Algoritmo dos componentes ligados iterativo
                 while (changes == 1)
                 {
                     dataPtr = (byte*)mStart.imageData.ToPointer();
@@ -768,6 +798,94 @@ namespace SS_OpenCV
                         dataPtr += padding + nChan * 2;
                     }
                 }
+
+
+                // int[,] matrix = initiateLabels(width, height, img, padding, widthStep);
+                
+                // //Algoritmo dos componentes ligados
+                // while (changes == 1)
+                // {
+                //     changes = 0;
+
+                //     for (y = 1; y < height-1; y++)
+                //     {
+                //         for (x = 1; x < width-1; x++)
+                //         {
+                            
+                //             if (matrix[x,y] != 0)
+                //             {
+                //                 left = matrix[x - 1, y];
+                //                 top = matrix[x, y - 1];
+                //                 topLeft = matrix[x-1, y-1];
+                //                 topRight = matrix[x+1, y-1];
+                //                 label = matrix[x,y];
+
+                //                 if (top != 0 && top < label)
+                //                 {
+                //                     label = top;
+                //                 }
+                //                 if (left != 0 && left < label)
+                //                 {
+                //                     label = left;
+                //                 }
+                //                 if (topLeft != 0 && topLeft < label)
+                //                 {
+                //                     label = topLeft;
+                //                 }
+                //                 if (topRight != 0 && topRight < label)
+                //                 {
+                //                     label = topRight;
+                //                 }
+                //                 if (matrix[x, y] != label) //If matrix was changed
+                //                 {
+                //                     changes = 1;
+                //                     matrix[x, y] = label;
+                //                 }
+                //             }
+                //         }
+                //     }
+
+                //     for (y = height-2; y > 0; y--)
+                //     {
+                //         for (x = width-2; x > 0; x--)
+                //         {
+                //             if (matrix[x,y] != 0)
+                //             {
+                //                 left = matrix[x - 1, y];
+                //                 top = matrix[x, y - 1];
+                //                 topLeft = matrix[x-1, y-1];
+                //                 topRight = matrix[x+1, y-1];
+                //                 label = matrix[x,y];
+
+                //                 if (top != 0 && top < label)
+                //                 {
+                //                     label = top;
+                //                 }
+                //                 if (left != 0 && left < label)
+                //                 {
+                //                     label = left;
+                //                 }
+                //                 if (topLeft != 0 && topLeft < label)
+                //                 {
+                //                     label = topLeft;
+                //                 }
+                //                 if (topRight != 0 && topRight < label)
+                //                 {
+                //                     label = topRight;
+                //                 }
+                //                 if (matrix[x, y] != label) //If matrix was changed
+                //                 {
+                //                     changes = 1;
+                //                     matrix[x, y] = label;
+                //                 }
+                //             }
+
+                //             dataPtr += nChan;
+                //         }
+                    
+                //         dataPtr += padding + nChan * 2;
+                //     }      
+                // }
 
                 //Top Margin
                 dataPtr = (byte*)mStart.imageData.ToPointer();
@@ -947,6 +1065,72 @@ namespace SS_OpenCV
                         }
                     }
                 }                        
+
+                return matrix;
+            }
+        }
+
+        private static int[,] initiateLabels(int width, int height, Image<Bgr, byte> img, int padding, int widthStep){
+            int x,y;
+            int[,] matrix = new int[width, height];
+            int numberImages = 0;
+
+            unsafe{                
+                MIplImage mStart = img.MIplImage;
+                byte* dataPtr = (byte*)mStart.imageData.ToPointer();
+                int bBack = dataPtr[0];
+                int gBack = dataPtr[1];
+                int rBack = dataPtr[2];
+                int left, topRight, top, topLeft, label;
+                int nChan = mStart.nChannels;
+                dataPtr = (byte*)mStart.imageData.ToPointer();
+                dataPtr += nChan + widthStep;
+                
+                for (y = 1; y < height-1; y++) {
+                    for (x = 1; x < width-1; x++) {
+                        if (dataPtr[0] != bBack || dataPtr[1] != gBack || dataPtr[2] != rBack) {
+                            left = matrix[x - 1, y];
+                            top = matrix[x, y - 1];
+                            topLeft = matrix[x-1, y-1];
+                            topRight = matrix[x+1, y-1];
+                            label = width * height;
+
+                            if (top != 0 && top < label)
+                            {
+                                label = top;
+                            }
+                            if (left != 0 && left < label)
+                            {
+                                label = left;
+                            }
+                            if (topLeft != 0 && topLeft < label)
+                            {
+                                label = topLeft;
+                            }
+                            if (topRight != 0 && topRight < label)
+                            {
+                                label = topRight;
+                            }
+                            if (label == width * height && matrix[x, y] == 0)
+                            {
+                                label = ++numberImages;
+                            }
+                            if (matrix[x, y] != label) //If matrix was changed
+                            {
+                                matrix[x, y] = label;
+                            }
+                        }
+                        dataPtr += nChan;
+                    }
+                    dataPtr += padding + nChan * 2;
+                }
+
+                // for (y = 1; y < height-1; y++) {
+                //     for (x = 1; x < width-1; x++) {
+                //         Console.Write(matrix[x,y] + " ");                        
+                //     }
+                // Console.WriteLine();                                        
+                // }
 
                 return matrix;
             }
@@ -1364,6 +1548,59 @@ namespace SS_OpenCV
             }
         }
 
+        public static void Rotation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, float angle, byte[] rgb)
+        {
+            unsafe
+            {
+                MIplImage m = img.MIplImage;
+                MIplImage mCopy = imgCopy.MIplImage;
+
+                int width = imgCopy.Width;
+                int height = imgCopy.Height;
+                int padding = mCopy.widthStep - mCopy.nChannels * mCopy.width; // alinhament bytes (padding)
+                byte* dataPtr = (byte*)m.imageData.ToPointer();
+                byte* dataPtrCopy = (byte*)mCopy.imageData.ToPointer();
+                int nChannels = mCopy.nChannels;
+
+                double valueOfCos = Math.Cos(angle);
+                double valueOfSin = Math.Sin(angle);
+                double halfWidth = width / 2.0;
+                double halfHeight = height / 2.0;
+                int newX, newY;
+
+                if (nChannels == 3)
+                {
+
+                    for (int y = 0; y < height; y++)
+                    {
+
+                        for (int x = 0; x < width; x++)
+                        {
+
+                            newX = (int)Math.Round(((x - halfWidth) * valueOfCos - (halfHeight - y) * valueOfSin + halfWidth));
+                            newY = (int)Math.Round((halfHeight - (x - halfWidth) * valueOfSin - (halfHeight - y) * valueOfCos));
+
+                            if (newX >= 0 && newX < width && newY >= 0 && newY < height)
+                            {
+                                dataPtr[0] = (byte)(dataPtrCopy + newY * m.widthStep + newX * nChannels)[0];
+                                dataPtr[1] = (byte)(dataPtrCopy + newY * m.widthStep + newX * nChannels)[1];
+                                dataPtr[2] = (byte)(dataPtrCopy + newY * m.widthStep + newX * nChannels)[2];
+                            }
+                            else
+                            {
+                                dataPtr[0] = rgb[0];
+                                dataPtr[1] = rgb[1];
+                                dataPtr[2] = rgb[2];
+                            }
+
+                            dataPtr += nChannels;
+                        }
+                        dataPtr += padding;
+                    }
+                }
+            }
+        }
+
         public static void Mean(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy)
         { //3x3
             unsafe
@@ -1690,7 +1927,6 @@ namespace SS_OpenCV
                             {
                                 dataPtr2[2] = (byte)tempArray[2];
                             }
-
                         }
                     }
 
