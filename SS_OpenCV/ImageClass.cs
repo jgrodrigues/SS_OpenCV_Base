@@ -5,7 +5,7 @@ using Emgu.CV.Structure;
 using Emgu.CV;
 namespace SS_OpenCV
 {
-    class ImageClass
+    static class ImageClass
     {
         /// <summary>
         /// Function that solves the puzzle
@@ -31,7 +31,7 @@ namespace SS_OpenCV
 
             if (level == 1)
             {
-                matrix = imageFinder(dummyImg, Pieces_positions, out numberImages);
+                matrix = imageFinder(dummyImg, out numberImages);
                 Pieces_positions = getPositions(matrix, height, width, numberImages, img);
 
                 for (currentImg = 0; currentImg < numberImages; currentImg++)
@@ -52,7 +52,7 @@ namespace SS_OpenCV
             }
             else if (level == 2)
             {
-                matrix = imageFinder(dummyImg, Pieces_positions, out numberImages);
+                matrix = imageFinder(dummyImg, out numberImages);
                 Pieces_positions = getPositions(matrix, height, width, numberImages, img);
                 List<int[]> upperRightCorners = getUpperRightCorners(img, matrix, numberImages);
                 List<int[]> bottomLeftCorners = getBottomLeftCorners(img, matrix, numberImages);
@@ -75,12 +75,12 @@ namespace SS_OpenCV
                 {
                     Pieces_angle.Add((int)angle);
                 }
-                dummyImg = pieces[1];
-                //dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
+                //dummyImg = pieces[1];
+                dummyImg = joinPiecesLevel1(pieces[0], pieces[1]);
             }
             else
             {
-                matrix = imageFinder(dummyImg, Pieces_positions, out numberImages);
+                matrix = imageFinder(dummyImg, out numberImages);
                 Pieces_positions = getPositions(matrix, height, width, numberImages, img);
                 List<int[]> upperRightCorners = getUpperRightCorners(img, matrix, numberImages);
                 List<int[]> bottomLeftCorners = getBottomLeftCorners(img, matrix, numberImages);
@@ -164,174 +164,169 @@ namespace SS_OpenCV
         {
             unsafe
             {
-                int heightPiece = img.Height;
-                int widthPiece = img.Width;
+                int oldHeightPiece = img.Height;
+                int oldWidthPiece = img.Width;
                 MIplImage mImg = img.MIplImage;
-
-                byte* dataPtrImg;
+                
                 int nChan = mImg.nChannels;
                 int widthStepImg = mImg.widthStep;
 
                 Image<Bgr, byte> piece = null;
                 Image<Bgr, byte> dummy = img.Copy();
 
-                int numWidthToRemove = 0;
-                int numHeightToRemove = 0;
+                List<int> linesToRemove = new List<int>();
+                List<int> columnsToRemove = new List<int>();
 
-                int lineToRemove = -1;
-                int columnToRemove = -1;
-
-                while (widthPiece > correctWidth || heightPiece > correctHeight)
+                if (oldWidthPiece > correctWidth)
                 {
-                    dataPtrImg = (byte*)mImg.imageData.ToPointer();
-                    if (widthPiece > correctWidth)
+                    columnsToRemove =  getColumnsToRemove(dummy, oldWidthPiece - correctWidth);
+                }
+                if (oldHeightPiece > correctHeight)
+                {
+                    linesToRemove = getLinesToRemove(dummy, oldHeightPiece - correctHeight);
+                }
+                int newWidth = oldWidthPiece-columnsToRemove.Count;
+                int newHeight = oldHeightPiece-linesToRemove.Count;
+
+                piece = new Image<Bgr, byte>(newWidth, newHeight);
+                MIplImage mPiece = piece.MIplImage;
+                byte* dataPtrPiece = (byte*)mPiece.imageData.ToPointer();
+                byte* dataPtrImg = (byte*)mImg.imageData.ToPointer();
+                int widthStepPiece = mPiece.widthStep;
+                int paddingPiece = widthStepPiece - nChan * newWidth;
+                int paddingImg = widthStepImg - nChan * oldWidthPiece;
+
+                for (int y = 0; y < oldHeightPiece; y++)
+                {
+                    if (!linesToRemove.Contains(y))
                     {
-                        columnToRemove = getColumnToRemove(dummy);
-                    }
-                    if (heightPiece > correctHeight)
-                    {
-                        lineToRemove = getLineToRemove(dummy);
-                    }
-
-
-                    widthPiece = columnToRemove != -1 ? widthPiece - 1 : widthPiece;
-                    heightPiece = lineToRemove != -1 ? heightPiece - 1 : heightPiece;
-
-                    piece = new Image<Bgr, byte>(widthPiece, heightPiece);
-                    MIplImage mPiece = piece.MIplImage;
-                    byte* dataPtrPiece = (byte*)mPiece.imageData.ToPointer();
-                    int widthStepPiece = mPiece.widthStep;
-                    int paddingPiece = widthStepPiece - nChan * widthPiece;
-
-                    for (int y = 0; y < heightPiece; y++)
-                    {
-                        if (y != lineToRemove)
+                        for (int x = 0; x < oldWidthPiece; x++)
                         {
-                            for (int x = 0; x < widthPiece; x++)
-                            {
-                                if (x != columnToRemove)
+                            if (!columnsToRemove.Contains(x))
                                 {
-                                    dataPtrPiece[0] = dataPtrImg[0];
-                                    dataPtrPiece[1] = dataPtrImg[1];
-                                    dataPtrPiece[2] = dataPtrImg[2];
-
-                                    dataPtrImg += nChan;
-                                }
+                                dataPtrPiece[0] = dataPtrImg[0];
+                                dataPtrPiece[1] = dataPtrImg[1];
+                                dataPtrPiece[2] = dataPtrImg[2];
                                 dataPtrPiece += nChan;
                             }
-
-                            dataPtrPiece += paddingPiece;
+                            dataPtrImg += nChan;  
                         }
-                        dataPtrImg += widthStepImg - (widthPiece * nChan);
+                        dataPtrPiece += paddingPiece;
+                        dataPtrImg += paddingImg;
+                    } else {
+                        dataPtrImg += widthStepImg;
                     }
-                    dummy = piece.Copy();
                 }
                 return piece;
             }
         }
 
-        private static int getColumnToRemove(Image<Bgr, byte> img)
+        private static List<int> getColumnsToRemove(Image<Bgr, byte> img, int nToRemove)
         {
             unsafe
             {
                 int heightPiece = img.Height;
                 int widthPiece = img.Width;
-                //Image<Bgr, byte> piece = new Image<Bgr, byte>(widthPiece, heightPiece);
-                //MIplImage mPiece = piece.MIplImage;
                 MIplImage mImg = img.MIplImage;
-                //byte* dataPtrPiece = (byte*)mPiece.imageData.ToPointer();
                 int nChan = mImg.nChannels;
-                byte* dataPtrImg = (byte*)mImg.imageData.ToPointer();
-                byte* dataPtrImg2 = (byte*)mImg.imageData.ToPointer() + nChan;
                 int widthStepImg = mImg.widthStep;
-                //int widthStepPiece = mPiece.widthStep;
-                //int paddingPiece = widthStepPiece - nChan * widthPiece;
-                int differenceLeftSide = 0;
-                int differenceRightSide = 0;
+                List<int> columnsToRemove = new List<int>();
+                int nLeftColumnsRemoved = 0;
+                int nRightColumnsRemoved = 0;
 
-                //calculate difference on left side
-                //dataPtrImg += nChan * xTopLeft + widthStepImg * yTopLeft;
-                //dataPtrImg2 += nChan * xTopLeft + widthStepImg * yTopLeft;
-                for (int y = 0; y < heightPiece; y++)
-                {
-                    differenceLeftSide += Math.Abs(dataPtrImg[0] - dataPtrImg2[0]) +
-                        Math.Abs(dataPtrImg[1] - dataPtrImg2[1]) +
-                        Math.Abs(dataPtrImg[2] - dataPtrImg2[2]);
+                for(int n = 0; n<nToRemove; n++) {
+                    int differenceLeftSide = 0;
+                    int differenceRightSide = 0;
+                    byte* dataPtrImg = (byte*)mImg.imageData.ToPointer() + nLeftColumnsRemoved*nChan;
+                    byte* dataPtrImg2 = (byte*)mImg.imageData.ToPointer() + nChan + nLeftColumnsRemoved*nChan;
 
-                    dataPtrImg += widthStepImg;
-                    dataPtrImg2 += widthStepImg;
+                    for (int y = 0; y < heightPiece; y++)
+                    {
+                        differenceLeftSide += Math.Abs(dataPtrImg[0] - dataPtrImg2[0]) +
+                            Math.Abs(dataPtrImg[1] - dataPtrImg2[1]) +
+                            Math.Abs(dataPtrImg[2] - dataPtrImg2[2]);
+
+                        dataPtrImg += widthStepImg;
+                        dataPtrImg2 += widthStepImg;
+                    }
+
+                    //calculate difference on right side
+                    dataPtrImg =(byte*)mImg.imageData.ToPointer()+ nChan*(widthPiece-1) - nRightColumnsRemoved*nChan;
+                    dataPtrImg2 =(byte*)mImg.imageData.ToPointer()+ nChan*(widthPiece-1) - nChan - nRightColumnsRemoved*nChan;
+
+                    for (int y = 0; y < heightPiece; y++)
+                    {
+                        differenceRightSide += Math.Abs(dataPtrImg[0] - dataPtrImg2[0]) +
+                            Math.Abs(dataPtrImg[1] - dataPtrImg2[1]) +
+                            Math.Abs(dataPtrImg[2] - dataPtrImg2[2]);
+
+                        dataPtrImg += widthStepImg;
+                        dataPtrImg2 += widthStepImg;
+                    }
+
+                    if(differenceLeftSide > differenceRightSide) {
+                        columnsToRemove.Add(nLeftColumnsRemoved++);
+                    } else {
+                        columnsToRemove.Add(widthPiece-1-nRightColumnsRemoved++);
+                    }
                 }
-
-                //calculate difference on right side
-                dataPtrImg = (byte*)mImg.imageData.ToPointer();
-                dataPtrImg2 = (byte*)mImg.imageData.ToPointer() - nChan;
-                //dataPtrImg += nChan * xBottomRight + widthStepImg * yTopLeft;
-                //dataPtrImg2 += nChan * xBottomRight + widthStepImg * yTopLeft;
-
-                for (int y = 0; y < heightPiece; y++)
-                {
-                    differenceRightSide += Math.Abs(dataPtrImg[0] - dataPtrImg2[0]) +
-                        Math.Abs(dataPtrImg[1] - dataPtrImg2[1]) +
-                        Math.Abs(dataPtrImg[2] - dataPtrImg2[2]);
-
-                    dataPtrImg += widthStepImg;
-                    dataPtrImg2 += widthStepImg;
-                }
-
-                return differenceLeftSide > differenceRightSide ? 0 : widthPiece - 1;
+                return columnsToRemove;
             }
         }
 
-        private static int getLineToRemove(Image<Bgr, byte> img)
+        private static List<int> getLinesToRemove(Image<Bgr, byte> img, int nToRemove)
         {
             unsafe
             {
                 int heightPiece = img.Height;
                 int widthPiece = img.Width;
-                //Image<Bgr, byte> piece = new Image<Bgr, byte>(widthPiece, heightPiece);
-                //MIplImage mPiece = piece.MIplImage;
                 MIplImage mImg = img.MIplImage;
-                //byte* dataPtrPiece = (byte*)mPiece.imageData.ToPointer();
                 int nChan = mImg.nChannels;
-                byte* dataPtrImg = (byte*)mImg.imageData.ToPointer();
                 int widthStepImg = mImg.widthStep;
-                byte* dataPtrImg2 = (byte*)mImg.imageData.ToPointer() + widthStepImg;
+                List<int> linesToRemove = new List<int>();
+                int nTopLinesRemoved = 0;
+                int nBottomLinesRemoved = 0;
 
-                //int widthStepPiece = mPiece.widthStep;
-                //int paddingPiece = widthStepPiece - nChan * widthPiece;
-                int differenceTopSide = 0;
-                int differenceBottomSide = 0;
+                for(int n = 0;n<nToRemove;n++) {
+                    byte* dataPtrImg = (byte*)mImg.imageData.ToPointer() + widthStepImg*nTopLinesRemoved;
+                    byte* dataPtrImg2 = (byte*)mImg.imageData.ToPointer() + widthStepImg + widthStepImg*nTopLinesRemoved;
 
-                //calculate difference on top side
-                //dataPtrImg += nChan * xTopLeft + widthStepImg * yTopLeft;
-                //dataPtrImg2 += nChan * xTopLeft + widthStepImg * yTopLeft;
-                for (int x = 0; x < widthPiece; x++)
-                {
-                    differenceTopSide += Math.Abs(dataPtrImg[0] - dataPtrImg2[0]) +
-                        Math.Abs(dataPtrImg[1] - dataPtrImg2[1]) +
-                        Math.Abs(dataPtrImg[2] - dataPtrImg2[2]);
+                    int differenceTopSide = 0;
+                    int differenceBottomSide = 0;
 
-                    dataPtrImg += nChan;
-                    dataPtrImg2 += nChan;
+                    //calculate difference on top side
+                    for (int x = 0; x < widthPiece; x++)
+                    {
+                        differenceTopSide += Math.Abs(dataPtrImg[0] - dataPtrImg2[0]) +
+                            Math.Abs(dataPtrImg[1] - dataPtrImg2[1]) +
+                            Math.Abs(dataPtrImg[2] - dataPtrImg2[2]);
+
+                        dataPtrImg += nChan;
+                        dataPtrImg2 += nChan;
+                    }
+
+                    //calculate difference on bottom side
+                    dataPtrImg = (byte*)mImg.imageData.ToPointer()+widthStepImg*(heightPiece-1) - widthStepImg*nBottomLinesRemoved;
+                    dataPtrImg2 = (byte*)mImg.imageData.ToPointer()+widthStepImg*(heightPiece-1) - widthStepImg - widthStepImg*nBottomLinesRemoved;
+
+                    for (int x = 0; x < widthPiece; x++)
+                    {
+                        differenceBottomSide += Math.Abs(dataPtrImg[0] - dataPtrImg2[0]) +
+                            Math.Abs(dataPtrImg[1] - dataPtrImg2[1]) +
+                            Math.Abs(dataPtrImg[2] - dataPtrImg2[2]);
+
+                        dataPtrImg += nChan;
+                        dataPtrImg2 += nChan;
+                    }
+                    if(differenceTopSide > differenceBottomSide) {
+                        //Remover Top line
+                        linesToRemove.Add(nTopLinesRemoved++);
+                    } else {
+                        //Remover Bottom Line
+                        linesToRemove.Add(heightPiece-1-nBottomLinesRemoved++);
+                    }
                 }
-
-                //calculate difference on bottom side
-                dataPtrImg = (byte*)mImg.imageData.ToPointer();
-                dataPtrImg2 = (byte*)mImg.imageData.ToPointer() - widthStepImg;
-                //dataPtrImg += nChan * xTopLeft + widthStepImg * yBottomRight;
-                //dataPtrImg2 += nChan * xTopLeft + widthStepImg * yBottomRight;
-
-                for (int x = 0; x < widthPiece; x++)
-                {
-                    differenceBottomSide += Math.Abs(dataPtrImg[0] - dataPtrImg2[0]) +
-                        Math.Abs(dataPtrImg[1] - dataPtrImg2[1]) +
-                        Math.Abs(dataPtrImg[2] - dataPtrImg2[2]);
-
-                    dataPtrImg += nChan;
-                    dataPtrImg2 += nChan;
-                }
-
-                return differenceTopSide > differenceBottomSide ? 0 : heightPiece - 1;
+                return linesToRemove;
             }
         }
 
@@ -381,29 +376,30 @@ namespace SS_OpenCV
                 }
                 //return piece;
                 Image<Bgr, byte> pieceCopy = piece.Copy();
-                //Rotation(piece, pieceCopy, (float)angle, background);
+                Rotation(piece, pieceCopy, (float)angle, background);
                 //return piece;
 
-                Bgr mBg = new Bgr(dataPtrImg[0], dataPtrImg[1], dataPtrImg[2]);
-                System.Drawing.PointF p = new System.Drawing.PointF(widthPiece / 2.0f, heightPiece / 2.0f);
-                pieceCopy = piece.Rotate(radiansToDegrees(angle), p, Emgu.CV.CvEnum.INTER.CV_INTER_LINEAR, mBg, false);
-                piece = pieceCopy;
-                return piece;
+                // Bgr mBg = new Bgr(dataPtrImg[0], dataPtrImg[1], dataPtrImg[2]);
+                // System.Drawing.PointF p = new System.Drawing.PointF(widthPiece / 2.0f, heightPiece / 2.0f);
+                // pieceCopy = piece.Rotate(radiansToDegrees(angle), p, Emgu.CV.CvEnum.INTER.CV_INTER_LINEAR, mBg, false);
+                // piece = pieceCopy;
+                // return piece;
 
                 //int[] positionsOfPieceRotated = new int[4];
-                int numberImages = 1;
-                List<int[]> dummyPieces = new List<int[]>();
+                int[] dummyPieces;
+                int dummyNumberImages = 1;
                 //dummyPieces.Add(positionsOfPieceRotated);
 
-                int[,] matrix = imageFinder(piece, dummyPieces, out numberImages);
-                dummyPieces = getPositions(matrix, heightPiece, widthPiece, 1, piece);
+                int[,] matrix = imageFinder(piece, out dummyNumberImages);
                 //return piece;
-                Image<Bgr, byte> toReturn = getNormalPiece(piece, dummyPieces[0][0], dummyPieces[0][1], dummyPieces[0][2], dummyPieces[0][3]);
-
+                dummyPieces = getPositionsAfterRotation(matrix, heightPiece, widthPiece, piece);
+                
+                Image<Bgr, byte> toReturn = getNormalPiece(piece, dummyPieces[0], dummyPieces[1], dummyPieces[2], dummyPieces[3]);
+                //return toReturn;
                 toReturn = getPieceAfterRotation(toReturn, correctWidth, correctHeight);
                 return toReturn;
-                int resultWidth = toReturn.Width;
-                int resultHeigh = toReturn.Height;
+                // int resultWidth = toReturn.Width;
+                // int resultHeigh = toReturn.Height;
 
                 // if(resultWidth!=correctWidth || resultHeigh!=correctHeight) {
                 //     if(resultWidth!=correctWidth && resultHeigh==correctHeight) {
@@ -414,7 +410,6 @@ namespace SS_OpenCV
                 //         toReturn = cropWidthHeight(toReturn,correctWidth,correctHeight);
                 //     }
                 // }
-                return toReturn;
 
                 // dataPtrImg = (byte*)mImg.imageData.ToPointer();
                 // int newWidth = (int)Math.Ceiling((Piece_positions[2] - bottomLeft[0])/Math.Cos(degreesToRadians(angle)));
@@ -984,7 +979,7 @@ namespace SS_OpenCV
                 //Index1 is the difference between right of image1 and left of image2                
                 differencesLeftRight = checkLeftRight(piece1, piece2);
 
-                if (differencesLeftRight[0] < differencesLeftRight[1])
+                if (differencesLeftRight[0] > differencesLeftRight[1])
                 {
                     dummyImg = joinLeftRight(piece1, piece2);
                 }
@@ -1149,7 +1144,7 @@ namespace SS_OpenCV
                 byte* dataPtr2 = (byte*)mPiece2.imageData.ToPointer();
 
                 //Compare left of image1 to right of image2
-                dataPtr2 += nChan * widthPiece2;
+                dataPtr2 += nChan * widthPiece2-1; //Goes to right side of piece2
                 for (int y = 0; y < height; y++)
                 {
                     differencesLeftRight[0] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
@@ -1161,7 +1156,7 @@ namespace SS_OpenCV
                 dataPtr2 = (byte*)mPiece2.imageData.ToPointer();
 
                 //Compare right of image1 to left of image2
-                dataPtr1 += nChan * widthPiece1;
+                dataPtr1 += nChan * widthPiece1-1;
                 for (int y = 0; y < height; y++)
                 {
                     differencesLeftRight[1] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
@@ -1190,7 +1185,7 @@ namespace SS_OpenCV
                 byte* dataPtr2 = (byte*)mPiece2.imageData.ToPointer();
 
                 //Compare top of image1 to bottom of image2
-                //dataPtr2 += widthStepPiece2 * heightPiece2;
+                dataPtr2 += widthStepPiece2 * (heightPiece2-1);
                 for (int x = 0; x < width; x++)
                 {
                     differencesTopBottom[0] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
@@ -1202,7 +1197,7 @@ namespace SS_OpenCV
                 dataPtr2 = (byte*)mPiece2.imageData.ToPointer();
 
                 //Compare bottom of image1 to top of image2
-                //dataPtr1 += widthStepPiece1 * heightPiece1;
+                dataPtr1 += widthStepPiece1 * (heightPiece1-1);
                 for (int x = 0; x < width; x++)
                 {
                     differencesTopBottom[1] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
@@ -1278,7 +1273,7 @@ namespace SS_OpenCV
                 return matrix;
             }
         }
-        public static int[,] imageFinder(Image<Bgr, byte> img, List<int[]> Pieces_positions, out int numberImages)
+        public static int[,] imageFinder(Image<Bgr, byte> img, out int numberImages)
         {
             unsafe
             {
@@ -1497,7 +1492,7 @@ namespace SS_OpenCV
             unsafe
             {
                 byte* dataPtr = (byte*)mStart.imageData.ToPointer();
-                dataPtr += widthStep * (height - 1) + nChan * (height - 1);
+                dataPtr += widthStep * (height - 1) + nChan * (width - 1);
                 x = width - 1;
                 y = height - 1;
                 if (dataPtr[0] != bgrBackground[0] || dataPtr[1] != bgrBackground[1] || dataPtr[2] != bgrBackground[2])
@@ -1732,6 +1727,21 @@ namespace SS_OpenCV
                     dataPtr += widthStep;
                 }
             }
+        }
+
+        private static int[] getPositionsAfterRotation(int[,] matrix, int height, int width,Image<Bgr, byte> img) {
+            int[] upperLeftCorner = getUpperLeftCorners(img, matrix, 1)[0];
+            int[] upperRightCorners = getUpperRightCorners(img, matrix, 1)[0];
+            int[] lowerRightCorner = getBottomRightCorners(img, matrix, 1)[0];
+            int[] lowerLeftCorner = getBottomLeftCorners(img,matrix,1)[0];
+            int[] currPiecePositions = new int[4];
+
+            currPiecePositions[0] = Math.Min(upperLeftCorner[0],upperRightCorners[0]);
+            currPiecePositions[1] = Math.Min(upperLeftCorner[1],upperRightCorners[1]);
+            currPiecePositions[2] = Math.Max(lowerRightCorner[0],lowerLeftCorner[0]);
+            currPiecePositions[3] = Math.Max(lowerRightCorner[1],lowerLeftCorner[1]);
+
+            return currPiecePositions;
         }
         private static List<int[]> getPositions(int[,] matrix, int height, int width, int numberImages, Image<Bgr, byte> img)
         {
