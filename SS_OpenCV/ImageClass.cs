@@ -350,8 +350,8 @@ namespace SS_OpenCV
                 byte[] background = new byte[3];
 
                 //int resultingWidth = (int)Math.Ceiling((Piece_positions[2] - bottomLeft[0])/Math.Cos(angle));
-                int correctWidth = (int)Math.Round(Math.Sqrt(Math.Pow(Piece_positions[2] - bottomLeft[0], 2.0f) + Math.Pow(Piece_positions[3] - bottomLeft[1], 2.0f))) + 1;
-                int correctHeight = (int)Math.Round(Math.Sqrt(Math.Pow(bottomLeft[0] - Piece_positions[0], 2.0f) + Math.Pow(bottomLeft[1] - Piece_positions[1], 2.0f))) + 1;
+                int correctWidth = (int)Math.Round(Math.Sqrt(Math.Pow(Piece_positions[2] - bottomLeft[0], 2.0f) + Math.Pow(Piece_positions[3] - bottomLeft[1], 2.0f)))+1;
+                int correctHeight = (int)Math.Round(Math.Sqrt(Math.Pow(bottomLeft[0] - Piece_positions[0], 2.0f) + Math.Pow(bottomLeft[1] - Piece_positions[1], 2.0f)))+1;
 
                 background[0] = dataPtrImg[0];
                 background[1] = dataPtrImg[1];
@@ -502,7 +502,7 @@ namespace SS_OpenCV
             return degrees * Math.PI / 180.0;
         }
 
-        /// </summary>
+/// </summary>
         /// Function that gives the coordinates of the bottom right corner, when the image is rotated and when is not.
         /// </summary>
         /// <param name="matrix">The matrix with labels</param>
@@ -521,7 +521,7 @@ namespace SS_OpenCV
             int width = img.Width;
             int x, y;
             int currentLabel = 0;
-            int[] seen = new int[numberImages];
+            List <int> seen = new List<int>();
             int numberSeen = 0;
 
             for (x = width - 1; x >= 0 && numberImages != numberSeen; x--)
@@ -529,11 +529,11 @@ namespace SS_OpenCV
                 for (y = height - 1; y >= 0 && numberImages != numberSeen; y--)
                 {
                     int label = matrix[x, y];
-                    if (label != currentLabel && label != 0 && seen[label - 1] == 0)
+                    if (label != currentLabel && label != 0 && !seen.Contains(label))
                     {
                         bottomCorners[label - 1] = new int[] { x, y };
                         currentLabel = label;
-                        seen[label - 1] = 1;
+                        seen.Add(label);
                         numberSeen++;
                     }
                 }
@@ -560,7 +560,7 @@ namespace SS_OpenCV
             int width = img.Width;
             int x, y;
             int currentLabel = 0;
-            int[] seen = new int[numberImages];
+            List<int> seen = new List<int>();
             int numberSeen = 0;
             int[] coords = new int[2];
 
@@ -569,13 +569,13 @@ namespace SS_OpenCV
                 for (x = 0; x < width && numberImages != numberSeen; x++)
                 {
                     int label = matrix[x, y];
-                    if (label != currentLabel && label != 0 && seen[label - 1] == 0)
+                    if (label != currentLabel && label != 0 && !seen.Contains(label))
                     {
                         coords[0] = x;
                         coords[1] = y;
                         bottomCorners[label - 1] = coords;
                         currentLabel = label;
-                        seen[label - 1] = 1;
+                        seen.Add(label);
                         numberSeen++;
                         coords = new int[2];
                     }
@@ -603,7 +603,7 @@ namespace SS_OpenCV
             int width = img.Width;
             int x, y;
             int currentLabel = 0;
-            int[] seen = new int[numberImages];
+            List<int> seen = new List<int>();
             int numberSeen = 0;
             int[] coords = new int[2];
 
@@ -612,13 +612,13 @@ namespace SS_OpenCV
                 for (y = 0; y < height && numberImages != numberSeen; y++)
                 {
                     int label = matrix[x, y];
-                    if (label != currentLabel && label != 0 && seen[label - 1] == 0)
+                    if (label != currentLabel && label != 0 && !seen.Contains(label))
                     {
                         coords[0] = x; //xStart
                         coords[1] = y; //yStart
                         upperCorners[label - 1] = coords;
                         currentLabel = label;
-                        seen[label - 1] = 1;
+                        seen.Add(label);
                         numberSeen++;
                         coords = new int[2];
                     }
@@ -646,7 +646,7 @@ namespace SS_OpenCV
             int width = img.Width;
             int x, y;
             int currentLabel = 0;
-            int[] seen = new int[numberImages];
+            List<int> seen = new List<int>();
             int numberSeen = 0;
             int[] coords = new int[2];
 
@@ -655,13 +655,13 @@ namespace SS_OpenCV
                 for (x = width - 1; x >= 0 && numberImages != numberSeen; x--)
                 {
                     int label = matrix[x, y];
-                    if (label != currentLabel && label != 0 && seen[label - 1] == 0)
+                    if (label != currentLabel && label != 0 && !seen.Contains(label))
                     {
                         coords[0] = x; //xStart
                         coords[1] = y; //yStart
                         upperCorners[label - 1] = coords;
                         currentLabel = label;
-                        seen[label - 1] = 1;
+                        seen.Add(label);
                         numberSeen++;
                         coords = new int[2];
                     }
@@ -681,11 +681,11 @@ namespace SS_OpenCV
         private static int leastDifference(int[] differences)
         {
             int smallestValue = differences[0];
-            int smallestIndex = 0;
+            int smallestIndex = -1;
 
             for (int i = 1; i < differences.Length; i++)
             {
-                if (differences[i] < smallestValue)
+                if (differences[i] != -1 && differences[i] < smallestValue)
                 {
                     smallestIndex = i;
                     smallestValue = differences[i];
@@ -716,7 +716,7 @@ namespace SS_OpenCV
         private static Image<Bgr, byte> joinPiecesLevel3(List<Image<Bgr, byte>> pieces)
         {
             Image<Bgr, byte> resultImage = null;
-            //{pieceIndex, left/right/top/bottom} = joinedPieceIndex
+            //{pieceIndex, top/right/bottom/left} = joinedPieceIndex
             int[][] solvedMatrix = new int[pieces.Count][];
 
             joinedPiecesMatrix(solvedMatrix, pieces);
@@ -726,6 +726,8 @@ namespace SS_OpenCV
 
             //Join pieces on the vertical (top/bottom sides)
             resultImage = joinPiecesVertically(horizontallyJoinedPieces);
+
+            horizontallyJoinedPieces = null;
 
             return resultImage;
         }
@@ -737,26 +739,26 @@ namespace SS_OpenCV
 
             Image<Bgr, byte> resultImage = pieces[0];
 
-            for (int i = 0; i < pieces.Count; ++i)
+            for (int i = 0; i < pieces.Count; i++)
             {
                 if (!joinedIndexes.Contains(i))
                 {
                     resultImage = pieces[i];
                     joinedIndexes.Add(i);
                     int right = solvedMatrix[i][1];
-                    int left = solvedMatrix[i][0];
+                    int left = solvedMatrix[i][3];
 
-                    while (right != -1 || left != -1)
+                    while (right != -1 || left != -1) //Nao sai daqui
                     {
                         if (right != -1)
                         {
-                            if (resultImage.Height != pieces[right].Height)
+                          if (resultImage.Height != pieces[right].Height)
                             {
-                                int scaleFactor = resultImage.Height / pieces[right].Height;
+                                float scaleFactor = (float)resultImage.Height / pieces[right].Height;
 
                                 Scale(pieces[right], pieces[right].Copy(), scaleFactor);
                             }
-
+ 
                             joinedIndexes.Add(right);
                             resultImage = joinLeftRight(resultImage, pieces[right]);
                             right = solvedMatrix[right][1];
@@ -765,20 +767,21 @@ namespace SS_OpenCV
                         {
                             if (resultImage.Height != pieces[left].Height)
                             {
-                                int scaleFactor = resultImage.Height / pieces[left].Height;
+                                float scaleFactor = (float)resultImage.Height / pieces[left].Height;
 
                                 Scale(pieces[left], pieces[left].Copy(), scaleFactor);
                             }
+
                             joinedIndexes.Add(left);
                             resultImage = joinLeftRight(resultImage, pieces[left]);
-                            left = solvedMatrix[left][0];
+                            left = solvedMatrix[left][3];
                         }
                     }
 
                     joinedPieces.Add(resultImage);
                 }
             }
-
+            resultImage = null;
             return joinedPieces;
         }
 
@@ -797,7 +800,7 @@ namespace SS_OpenCV
                 {
                     resultImage = pieces[i];
                     joinedIndexes.Add(i);
-                    int bottom = solvedMatrix[i][1];
+                    int bottom = solvedMatrix[i][2];
                     int top = solvedMatrix[i][0];
 
                     while (bottom != -1 || top != -1)
@@ -806,20 +809,21 @@ namespace SS_OpenCV
                         {
                             if (resultImage.Width != pieces[bottom].Width)
                             {
-                                int scaleFactor = resultImage.Width / pieces[bottom].Width;
+                                float scaleFactor = (float)resultImage.Width / pieces[bottom].Width;
 
                                 Scale(pieces[bottom], pieces[bottom].Copy(), scaleFactor);
                             }
 
                             joinedIndexes.Add(bottom);
                             resultImage = joinTopBottom(resultImage, pieces[bottom]);
-                            bottom = solvedMatrix[bottom][1];
+                            bottom = solvedMatrix[bottom][2];
                         }
                         if (top != -1)
                         {
+                            
                             if (resultImage.Width != pieces[top].Width)
                             {
-                                int scaleFactor = resultImage.Width / pieces[top].Width;
+                                float scaleFactor = (float)resultImage.Width / pieces[top].Width;
 
                                 Scale(pieces[top], pieces[top].Copy(), scaleFactor);
                             }
@@ -837,23 +841,45 @@ namespace SS_OpenCV
 
         private static void joinedPiecesMatrix(int[][] matrix, List<Image<Bgr, byte>> pieces)
         {
-            //{piece1Index, piece2Index, left/right/top/bottom,} = border difference
+            //{piece1Index, piece2Index, top/right/bottom/left,} = border difference
             int[][][] differencesMatrix = new int[pieces.Count][][];
 
             //Populate the matrix so that each piece isn't joined to any piece (-1)
-            Populate(matrix, Populate(new int[4], -1));
+            for (int i = 0; i < matrix.Length; ++i)
+            {
+                matrix[i] = new int[4];
+                for(int j=0; j < 4; ++j)
+                {
+                    matrix[i][j] = -1;
+                }
+                
+            }
 
+            for (int i = 0; i < differencesMatrix.Length; ++i)
+            {
+                differencesMatrix[i] = new int[pieces.Count][];
+
+            }
+            
 
             for (int i = 0; i < pieces.Count - 1; ++i)
             {
-                for (int j = i + 1; i < pieces.Count; ++j)
+                for (int j = i + 1; j < pieces.Count; ++j)
                 {
                     int[] differences = new int[4];
                     int leastDiff = leastDifferenceLevel3(pieces[i], pieces[j], differences);
 
-                    if (matrix[i][leastDiff] == -1 || differences[leastDiff] < differencesMatrix[i][j][leastDiff])
+                    if (leastDiff != -1 && (matrix[i][leastDiff] == -1 || (differences[leastDiff] != -1 && differences[leastDiff] < differencesMatrix[i][j][leastDiff])))
                     {
+
+                        int temp = matrix[i][leastDiff];
                         matrix[i][leastDiff] = j;
+                               
+                        if (temp != -1)
+                        {
+                            matrix[temp][leastDiff + 2 % 4] = -1;
+                        }
+
                         differencesMatrix[i][j] = differences;
                     }
                 }
@@ -862,34 +888,51 @@ namespace SS_OpenCV
 
         private static int leastDifferenceLevel3(Image<Bgr, byte> piece1, Image<Bgr, byte> piece2, int[] differences)
         {
-            Image<Bgr, byte> tempPiece = piece2;
-
-            if (piece1.Width != tempPiece.Width)
+            int[] differencesLeftRight, differencesTopBottom;
+            
+            if (piece1.Width == piece2.Width && piece1.Height == piece2.Height)
             {
-                int scaleFactor = piece1.Width / tempPiece.Width;
+                differencesTopBottom = checkTopBottom(piece1, piece2);
+                differencesLeftRight = checkLeftRight(piece1, piece2);
 
-                Scale(tempPiece, tempPiece.Copy(), scaleFactor);
-            }
-
-            int[] differencesLeftRight = checkLeftRight(piece1, tempPiece);
-
-            tempPiece = piece2;
-
-            if (piece1.Height != tempPiece.Height)
+                differences[0] = differencesTopBottom[0];
+                differences[1] = differencesLeftRight[1];
+                differences[2] = differencesTopBottom[1];
+                differences[3] = differencesLeftRight[0];
+                return leastDifference(differences);
+            } else if (piece1.Width == piece2.Width)
             {
-                int scaleFactor = piece1.Height / tempPiece.Height;
+                differencesTopBottom = checkLeftRight(piece1, piece2);
+                differences[0] = differencesTopBottom[0];
+                differences[1] = -1;
+                differences[2] = differencesTopBottom[1];
+                differences[3] = -1;
+                
+                int diff = leastDifference(differencesTopBottom);
+                if(diff == 0) {
+                    return 0; //top of piece1
+                } else {
+                    return 2; //bottom of piece1
+                }                                                                                           
+                
+            } else if (piece1.Height == piece2.Height)
+            {
+                differencesLeftRight = checkLeftRight(piece1, piece2);
+                differences[0] = -1;
+                differences[1] = differencesLeftRight[1];
+                differences[2] = -1;
+                differences[3] = differencesLeftRight[0];
+               
+                int diff = leastDifference(differencesLeftRight);
 
-                Scale(tempPiece, tempPiece.Copy(), scaleFactor);
+                if(diff == 0) {
+                    return 3; //left of piece1
+                } else {
+                    return 1; //right of piece1
+                }
             }
-
-            int[] differencesTopBottom = checkTopBottom(piece1, tempPiece);
-
-            differences[0] = differencesLeftRight[0];
-            differences[1] = differencesLeftRight[1];
-            differences[2] = differencesTopBottom[0];
-            differences[3] = differencesTopBottom[1];
-
-            return leastDifference(differences);
+            
+            return -1;
         }
 
         /// </summary>
@@ -1144,7 +1187,7 @@ namespace SS_OpenCV
                 byte* dataPtr2 = (byte*)mPiece2.imageData.ToPointer();
 
                 //Compare left of image1 to right of image2
-                dataPtr2 += nChan * widthPiece2-1; //Goes to right side of piece2
+                dataPtr2 += nChan * (widthPiece2-1); //Goes to right side of piece2
                 for (int y = 0; y < height; y++)
                 {
                     differencesLeftRight[0] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
@@ -1156,7 +1199,7 @@ namespace SS_OpenCV
                 dataPtr2 = (byte*)mPiece2.imageData.ToPointer();
 
                 //Compare right of image1 to left of image2
-                dataPtr1 += nChan * widthPiece1-1;
+                dataPtr1 += nChan * (widthPiece1-1);
                 for (int y = 0; y < height; y++)
                 {
                     differencesLeftRight[1] += Math.Abs(dataPtr2[0] - dataPtr1[0]) + Math.Abs(dataPtr2[1] - dataPtr1[1]) + Math.Abs(dataPtr2[2] - dataPtr1[2]);
@@ -2419,8 +2462,8 @@ namespace SS_OpenCV
             }
         }
 
-        public static void Sobel(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy)
-        {//USAR RELATIVO
+public static void Sobel(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy)
+        {
             unsafe
             {
                 MIplImage m = img.MIplImage;
@@ -2429,566 +2472,666 @@ namespace SS_OpenCV
                 int width = imgCopy.Width;
                 int height = imgCopy.Height;
                 int padding = m.widthStep - m.nChannels * m.width; // alinhament bytes (padding)
-                byte* dataPtr = (byte*)m.imageData.ToPointer(), dataPtr2 = dataPtr;
-                byte* dataPtrCopy = (byte*)mCopy.imageData.ToPointer(), dataPtrCopy2 = dataPtrCopy;
+                byte* dataPtr = (byte*)m.imageData.ToPointer();
+                byte* dataPtrCopy = (byte*)mCopy.imageData.ToPointer();
                 int nChannels = m.nChannels;
 
                 if (nChannels == 3)
                 {
                     int[] tempArray = new int[3];
+                    dataPtr += nChannels + m.widthStep;
+                    dataPtrCopy += nChannels + m.widthStep;
+
                     for (int y = 1; y < height - 1; y++)
                     {
                         for (int x = 1; x < width - 1; x++)
                         {
-                            dataPtr2 = (dataPtr + y * m.widthStep + x * nChannels);
-                            dataPtrCopy2 = (dataPtrCopy + y * m.widthStep + x * nChannels);
-
                             tempArray[0] = Math.Abs(
-                                ((dataPtrCopy2 - m.widthStep - nChannels)[0] +
-                                2 * (dataPtrCopy2 - nChannels)[0] +
-                                (dataPtrCopy2 + m.widthStep - nChannels)[0]) -
+                                ((dataPtrCopy - m.widthStep - nChannels)[0] + 2 * (dataPtrCopy - nChannels)[0] + (dataPtrCopy + m.widthStep - nChannels)[0]) -
+                                ((dataPtrCopy - m.widthStep + nChannels)[0] + 2 * (dataPtrCopy + nChannels)[0] + (dataPtrCopy + m.widthStep + nChannels)[0])) +
 
-                                ((dataPtrCopy2 - m.widthStep + nChannels)[0] +
-                                2 * (dataPtrCopy2 + nChannels)[0] +
-                                (dataPtrCopy2 + m.widthStep + nChannels)[0]) +
-
-                               Math.Abs(
-                                ((dataPtrCopy2 + m.widthStep - nChannels)[0] +
-                                2 * (dataPtrCopy2 + m.widthStep)[0] +
-                                (dataPtrCopy2 + m.widthStep + nChannels)[0]) -
-
-                                ((dataPtrCopy2 - m.widthStep - nChannels)[0] +
-                                2 * (dataPtrCopy2 - m.widthStep)[0] +
-                                (dataPtrCopy2 - m.widthStep + nChannels)[0])));
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep - nChannels)[0] + 2 * (dataPtrCopy + m.widthStep)[0] + (dataPtrCopy + m.widthStep + nChannels)[0]) -
+                                ((dataPtrCopy - m.widthStep - nChannels)[0] + 2 * (dataPtrCopy - m.widthStep)[0] + (dataPtrCopy - m.widthStep + nChannels)[0]));
 
                             tempArray[1] = Math.Abs(
-                                ((dataPtrCopy2 - m.widthStep - nChannels)[1] +
-                                2 * (dataPtrCopy2 - nChannels)[1] +
-                                (dataPtrCopy2 + m.widthStep - nChannels)[1]) -
-
-                                ((dataPtrCopy2 - m.widthStep + nChannels)[1] +
-                                2 * (dataPtrCopy2 + nChannels)[1] +
-                                (dataPtrCopy2 + m.widthStep + nChannels)[1]) +
+                                ((dataPtrCopy - m.widthStep - nChannels)[1] + 2 * (dataPtrCopy - nChannels)[1] + (dataPtrCopy + m.widthStep - nChannels)[1]) -
+                                ((dataPtrCopy - m.widthStep + nChannels)[1] + 2 * (dataPtrCopy + nChannels)[1] + (dataPtrCopy + m.widthStep + nChannels)[1])) +
 
                                Math.Abs(
-                                ((dataPtrCopy2 + m.widthStep - nChannels)[1] +
-                                2 * (dataPtrCopy2 + m.widthStep)[1] +
-                                (dataPtrCopy2 + m.widthStep + nChannels)[1]) -
-
-                                ((dataPtrCopy2 - m.widthStep - nChannels)[1] +
-                                2 * (dataPtrCopy2 - m.widthStep)[1] +
-                                (dataPtrCopy2 - m.widthStep + nChannels)[1])));
+                                ((dataPtrCopy + m.widthStep - nChannels)[1] + 2 * (dataPtrCopy + m.widthStep)[1] + (dataPtrCopy + m.widthStep + nChannels)[1]) -
+                                ((dataPtrCopy - m.widthStep - nChannels)[1] + 2 * (dataPtrCopy - m.widthStep)[1] + (dataPtrCopy - m.widthStep + nChannels)[1]));
 
                             tempArray[2] = Math.Abs(
-                                ((dataPtrCopy2 - m.widthStep - nChannels)[2] +
-                                2 * (dataPtrCopy2 - nChannels)[2] +
-                                (dataPtrCopy2 + m.widthStep - nChannels)[2]) -
-
-                                ((dataPtrCopy2 - m.widthStep + nChannels)[2] +
-                                2 * (dataPtrCopy2 + nChannels)[2] +
-                                (dataPtrCopy2 + m.widthStep + nChannels)[2]) +
+                                ((dataPtrCopy - m.widthStep - nChannels)[2] + 2 * (dataPtrCopy - nChannels)[2] + (dataPtrCopy + m.widthStep - nChannels)[2]) -
+                                ((dataPtrCopy - m.widthStep + nChannels)[2] + 2 * (dataPtrCopy + nChannels)[2] + (dataPtrCopy + m.widthStep + nChannels)[2])) +
 
                                Math.Abs(
-                                ((dataPtrCopy2 + m.widthStep - nChannels)[2] +
-                                2 * (dataPtrCopy2 + m.widthStep)[2] +
-                                (dataPtrCopy2 + m.widthStep + nChannels)[2]) -
-
-                                ((dataPtrCopy2 - m.widthStep - nChannels)[2] +
-                                2 * (dataPtrCopy2 - m.widthStep)[2] +
-                                (dataPtrCopy2 - m.widthStep + nChannels)[2])));
-
+                                ((dataPtrCopy + m.widthStep - nChannels)[2] + 2 * (dataPtrCopy + m.widthStep)[2] + (dataPtrCopy + m.widthStep + nChannels)[2]) -
+                                ((dataPtrCopy - m.widthStep - nChannels)[2] + 2 * (dataPtrCopy - m.widthStep)[2] + (dataPtrCopy - m.widthStep + nChannels)[2]));
 
                             if (tempArray[0] > 255)
                             {
-                                dataPtr2[0] = 255;
+                                dataPtr[0] = 255;
                             }
                             else if (tempArray[0] < 0)
                             {
-                                dataPtr2[0] = 0;
+                                dataPtr[0] = 0;
                             }
                             else
                             {
-                                dataPtr2[0] = (byte)tempArray[0];
+                                dataPtr[0] = (byte)tempArray[0];
                             }
 
                             if (tempArray[1] > 255)
                             {
-                                dataPtr2[1] = 255;
+                                dataPtr[1] = 255;
                             }
                             else if (tempArray[1] < 0)
                             {
-                                dataPtr2[1] = 0;
+                                dataPtr[1] = 0;
                             }
                             else
                             {
-                                dataPtr2[1] = (byte)tempArray[1];
+                                dataPtr[1] = (byte)tempArray[1];
                             }
 
                             if (tempArray[2] > 255)
                             {
-                                dataPtr2[2] = 255;
+                                dataPtr[2] = 255;
                             }
                             else if (tempArray[2] < 0)
                             {
-                                dataPtr2[2] = 0;
+                                dataPtr[2] = 0;
                             }
                             else
                             {
-                                dataPtr2[2] = (byte)tempArray[2];
+                                dataPtr[2] = (byte)tempArray[2];
                             }
+
+                            dataPtr += nChannels;
+                            dataPtrCopy += nChannels;
                         }
+
+                        dataPtr += 2 * nChannels + padding;
+                        dataPtrCopy += 2 * nChannels + padding;
                     }
 
-                    //Left-top pixel
-                    dataPtr2 = (dataPtr + height * m.widthStep + 0 * nChannels);
-                    dataPtrCopy2 = (dataPtrCopy + height * m.widthStep + 0 * nChannels);
+                    // //Top Left Corner
+                    // dataPtr = (byte*)m.imageData.ToPointer();
+                    // dataPtrCopy = (byte*)mCopy.imageData.ToPointer();
 
-                    tempArray[0] = Math.Abs(
-                            ((dataPtrCopy2)[0] +
-                            2 * (dataPtrCopy2)[0] +
-                            (dataPtrCopy2 + m.widthStep)[0]) -
+                    // tempArray[0] = Math.Abs(
+                    //         ((dataPtrCopy)[0] + 2 * (dataPtrCopy)[0] + (dataPtrCopy + m.widthStep)[0]) -
+                    //         ((dataPtrCopy + nChannels)[0] + 2 * (dataPtrCopy + nChannels)[0] + (dataPtrCopy + m.widthStep + nChannels)[0])) +
 
-                            ((dataPtrCopy2 + nChannels)[0] +
-                            2 * (dataPtrCopy2 + nChannels)[0] +
-                            (dataPtrCopy2 + m.widthStep + nChannels)[0]) +
+                    //        Math.Abs(
+                    //         ((dataPtrCopy + m.widthStep)[0] + 2 * (dataPtrCopy + m.widthStep)[0] + (dataPtrCopy + m.widthStep + nChannels)[0]) -
+                    //         ((dataPtrCopy)[0] + 2 * (dataPtrCopy)[0] + (dataPtrCopy + nChannels)[0]));
 
-                           Math.Abs(
-                            ((dataPtrCopy2 + m.widthStep)[0] +
-                            2 * (dataPtrCopy2 + m.widthStep)[0] +
-                            (dataPtrCopy2 + m.widthStep + nChannels)[0]) -
+                    // tempArray[1] = Math.Abs(
+                    //         ((dataPtrCopy)[1] + 2 * (dataPtrCopy2)[1] + (dataPtrCopy2 + m.widthStep)[1]) -
+                    //         ((dataPtrCopy + nChannels)[1] + 2 * (dataPtrCopy2 + nChannels)[1] + (dataPtrCopy + m.widthStep + nChannels)[1]) +
 
-                            ((dataPtrCopy2)[0] +
-                            2 * (dataPtrCopy2)[0] +
-                            (dataPtrCopy2 + nChannels)[0])));
+                    //        Math.Abs(
+                    //         ((dataPtrCopy + m.widthStep)[1] + 2 * (dataPtrCopy + m.widthStep)[1] + (dataPtrCopy + m.widthStep + nChannels)[1]) -
+                    //         ((dataPtrCopy)[1] + 2 * (dataPtrCopy)[1] + (dataPtrCopy + nChannels)[1])));
 
-                    tempArray[1] = Math.Abs(
-                            ((dataPtrCopy2)[1] +
-                            2 * (dataPtrCopy2)[1] +
-                            (dataPtrCopy2 + m.widthStep)[1]) -
+                    // tempArray[2] = Math.Abs(
+                    //             ((dataPtrCopy)[2] + 2 * (dataPtrCopy)[2] + (dataPtrCopy + m.widthStep)[2]) -
+                    //             ((dataPtrCopy + nChannels)[2] + 2 * (dataPtrCopy + nChannels)[2] + (dataPtrCopy + m.widthStep + nChannels)[2]) +
 
-                            ((dataPtrCopy2 + nChannels)[1] +
-                            2 * (dataPtrCopy2 + nChannels)[1] +
-                            (dataPtrCopy2 + m.widthStep + nChannels)[1]) +
-
-                           Math.Abs(
-                            ((dataPtrCopy2 + m.widthStep)[1] +
-                            2 * (dataPtrCopy2 + m.widthStep)[1] +
-                            (dataPtrCopy2 + m.widthStep + nChannels)[1]) -
-
-                            ((dataPtrCopy2)[1] +
-                            2 * (dataPtrCopy2)[1] +
-                            (dataPtrCopy2 + nChannels)[1])));
-
-                    tempArray[2] = Math.Abs(
-                                ((dataPtrCopy2)[2] +
-                                2 * (dataPtrCopy2)[2] +
-                                (dataPtrCopy2 + m.widthStep)[2]) -
-
-                                ((dataPtrCopy2 + nChannels)[2] +
-                                2 * (dataPtrCopy2 + nChannels)[2] +
-                                (dataPtrCopy2 + m.widthStep + nChannels)[2]) +
-
-                               Math.Abs(
-                                ((dataPtrCopy2 + m.widthStep)[2] +
-                                2 * (dataPtrCopy2 + m.widthStep)[2] +
-                                (dataPtrCopy2 + m.widthStep + nChannels)[2]) -
-
-                                ((dataPtrCopy2)[2] +
-                                2 * (dataPtrCopy2)[2] +
-                                (dataPtrCopy2 + nChannels)[2])));
+                    //            Math.Abs(
+                    //             ((dataPtrCopy + m.widthStep)[2] + 2 * (dataPtrCopy + m.widthStep)[2] + (dataPtrCopy + m.widthStep + nChannels)[2]) -
+                    //             ((dataPtrCopy)[2] + 2 * (dataPtrCopy)[2] + (dataPtrCopy + nChannels)[2])));
 
 
-                    if (tempArray[0] > 255)
+                    // if (tempArray[0] > 255)
+                    // {
+                    //     dataPtr2[0] = 255;
+                    // }
+                    // else if (tempArray[0] < 0)
+                    // {
+                    //     dataPtr2[0] = 0;
+                    // }
+                    // else
+                    // {
+                    //     dataPtr2[0] = (byte)tempArray[0];
+                    // }
+
+                    // if (tempArray[1] > 255)
+                    // {
+                    //     dataPtr2[1] = 255;
+                    // }
+                    // else if (tempArray[1] < 0)
+                    // {
+                    //     dataPtr2[1] = 0; 
+                    // }
+                    // else
+                    // {
+                    //     dataPtr2[1] = (byte)tempArray[1];
+                    // }
+
+                    // if (tempArray[2] > 255)
+                    // {
+                    //     dataPtr2[2] = 255;
+                    // }
+                    // else if (tempArray[2] < 0)
+                    // {
+                    //     dataPtr2[2] = 0;
+                    // }
+                    // else
+                    // {
+                    //     dataPtr2[2] = (byte)tempArray[2];
+                    // }
+
+                    // //Top Right Corner
+                    // dataPtr2 = (dataPtr + height * m.widthStep + 0 * nChannels);
+                    // dataPtrCopy2 = (dataPtrCopy + height * m.widthStep + 0 * nChannels);
+
+                    // tempArray[0] = Math.Abs(
+                    //         ((dataPtrCopy2 - m.widthStep - nChannels)[0] +
+                    //         2 * (dataPtrCopy2 - nChannels)[0] +
+                    //         (dataPtrCopy2 + m.widthStep - nChannels)[0]) -
+
+                    //         ((dataPtrCopy2)[0] +
+                    //         2 * (dataPtrCopy2)[0] +
+                    //         (dataPtrCopy2 + m.widthStep)[0]) +
+
+                    //        Math.Abs(
+                    //         ((dataPtrCopy2 + m.widthStep - nChannels)[0] +
+                    //         2 * (dataPtrCopy2 + m.widthStep)[0] +
+                    //         (dataPtrCopy2 + m.widthStep)[0]) -
+
+                    //         ((dataPtrCopy2 - nChannels)[0] +
+                    //         2 * (dataPtrCopy2)[0] +
+                    //         (dataPtrCopy2)[0])));
+
+                    // tempArray[1] = Math.Abs(
+                    //        ((dataPtrCopy2 - m.widthStep - nChannels)[1] +
+                    //        2 * (dataPtrCopy2 - nChannels)[1] +
+                    //        (dataPtrCopy2 + m.widthStep - nChannels)[1]) -
+
+                    //        ((dataPtrCopy2)[1] +
+                    //        2 * (dataPtrCopy2)[1] +
+                    //        (dataPtrCopy2 + m.widthStep)[1]) +
+
+                    //       Math.Abs(
+                    //        ((dataPtrCopy2 + m.widthStep - nChannels)[1] +
+                    //        2 * (dataPtrCopy2 + m.widthStep)[1] +
+                    //        (dataPtrCopy2 + m.widthStep)[1]) -
+
+                    //        ((dataPtrCopy2 - nChannels)[1] +
+                    //        2 * (dataPtrCopy2)[1] +
+                    //        (dataPtrCopy2)[1])));
+
+                    // tempArray[2] = Math.Abs(
+                    //        ((dataPtrCopy2 - m.widthStep - nChannels)[2] +
+                    //        2 * (dataPtrCopy2 - nChannels)[2] +
+                    //        (dataPtrCopy2 + m.widthStep - nChannels)[2]) -
+
+                    //        ((dataPtrCopy2)[2] +
+                    //        2 * (dataPtrCopy2)[2] +
+                    //        (dataPtrCopy2 + m.widthStep)[2]) +
+
+                    //       Math.Abs(
+                    //        ((dataPtrCopy2 + m.widthStep - nChannels)[2] +
+                    //        2 * (dataPtrCopy2 + m.widthStep)[2] +
+                    //        (dataPtrCopy2 + m.widthStep)[2]) -
+
+                    //        ((dataPtrCopy2 - nChannels)[2] +
+                    //        2 * (dataPtrCopy2)[2] +
+                    //        (dataPtrCopy2)[2])));
+
+
+                    // if (tempArray[0] > 255)
+                    // {
+                    //     dataPtr2[0] = 255;
+                    // }
+                    // else if (tempArray[0] < 0)
+                    // {
+                    //     dataPtr2[0] = 0;
+                    // }
+                    // else
+                    // {
+                    //     dataPtr2[0] = (byte)tempArray[0];
+                    // }
+
+                    // if (tempArray[1] > 255)
+                    // {
+                    //     dataPtr2[1] = 255;
+                    // }
+                    // else if (tempArray[1] < 0)
+                    // {
+                    //     dataPtr2[1] = 0;
+                    // }
+                    // else
+                    // {
+                    //     dataPtr2[1] = (byte)tempArray[1];
+                    // }
+
+                    // if (tempArray[2] > 255)
+                    // {
+                    //     dataPtr2[2] = 255;
+                    // }
+                    // else if (tempArray[2] < 0)
+                    // {
+                    //     dataPtr2[2] = 0;
+                    // }
+                    // else
+                    // {
+                    //     dataPtr2[2] = (byte)tempArray[2];
+                    // }
+
+                    // //Bottom Left Corner
+
+                    // //Bottom Right Corner
+                    // dataPtr2 = (dataPtr + height * m.widthStep + 0 * nChannels);
+                    // dataPtrCopy2 = (dataPtrCopy + height * m.widthStep + 0 * nChannels);
+
+                    // tempArray[0] = Math.Abs(
+                    //         ((dataPtrCopy2 - m.widthStep)[0] +
+                    //         2 * (dataPtrCopy2)[0] +
+                    //         (dataPtrCopy2)[0]) -
+
+                    //         ((dataPtrCopy2 - m.widthStep + nChannels)[0] +
+                    //         2 * (dataPtrCopy2 + nChannels)[0] +
+                    //         (dataPtrCopy2 + m.widthStep + nChannels)[0]) +
+
+                    //        Math.Abs(
+                    //         ((dataPtrCopy2 + m.widthStep - nChannels)[0] +
+                    //         2 * (dataPtrCopy2 + m.widthStep)[0] +
+                    //         (dataPtrCopy2 + m.widthStep)[0]) -
+
+                    //         ((dataPtrCopy2 - nChannels)[0] +
+                    //         2 * (dataPtrCopy2)[0] +
+                    //         (dataPtrCopy2)[0])));
+
+                    // tempArray[1] = Math.Abs(
+                    //        ((dataPtrCopy2 - m.widthStep - nChannels)[1] +
+                    //        2 * (dataPtrCopy2 - nChannels)[1] +
+                    //        (dataPtrCopy2 + m.widthStep - nChannels)[1]) -
+
+                    //        ((dataPtrCopy2)[1] +
+                    //        2 * (dataPtrCopy2)[1] +
+                    //        (dataPtrCopy2 + m.widthStep)[1]) +
+
+                    //       Math.Abs(
+                    //        ((dataPtrCopy2 + m.widthStep - nChannels)[1] +
+                    //        2 * (dataPtrCopy2 + m.widthStep)[1] +
+                    //        (dataPtrCopy2 + m.widthStep)[1]) -
+
+                    //        ((dataPtrCopy2 - nChannels)[1] +
+                    //        2 * (dataPtrCopy2)[1] +
+                    //        (dataPtrCopy2)[1])));
+
+                    // tempArray[2] = Math.Abs(
+                    //        ((dataPtrCopy2 - m.widthStep - nChannels)[2] +
+                    //        2 * (dataPtrCopy2 - nChannels)[2] +
+                    //        (dataPtrCopy2 + m.widthStep - nChannels)[2]) -
+
+                    //        ((dataPtrCopy2)[2] +
+                    //        2 * (dataPtrCopy2)[2] +
+                    //        (dataPtrCopy2 + m.widthStep)[2]) +
+
+                    //       Math.Abs(
+                    //        ((dataPtrCopy2 + m.widthStep - nChannels)[2] +
+                    //        2 * (dataPtrCopy2 + m.widthStep)[2] +
+                    //        (dataPtrCopy2 + m.widthStep)[2]) -
+
+                    //        ((dataPtrCopy2 - nChannels)[2] +
+                    //        2 * (dataPtrCopy2)[2] +
+                    //        (dataPtrCopy2)[2])));
+
+
+                    // if (tempArray[0] > 255)
+                    // {
+                    //     dataPtr2[0] = 255;
+                    // }
+                    // else if (tempArray[0] < 0)
+                    // {
+                    //     dataPtr2[0] = 0;
+                    // }
+                    // else
+                    // {
+                    //     dataPtr2[0] = (byte)tempArray[0];
+                    // }
+
+                    // if (tempArray[1] > 255)
+                    // {
+                    //     dataPtr2[1] = 255;
+                    // }
+                    // else if (tempArray[1] < 0)
+                    // {
+                    //     dataPtr2[1] = 0;
+                    // }
+                    // else
+                    // {
+                    //     dataPtr2[1] = (byte)tempArray[1];
+                    // }
+
+                    // if (tempArray[2] > 255)
+                    // {
+                    //     dataPtr2[2] = 255;
+                    // }
+                    // else if (tempArray[2] < 0)
+                    // {
+                    //     dataPtr2[2] = 0;
+                    // }
+                    // else
+                    // {
+                    //     dataPtr2[2] = (byte)tempArray[2];
+                    // }
+
+                    //Top Line
+
+                    dataPtr = (byte*)m.imageData.ToPointer();
+                    dataPtrCopy = (byte*)mCopy.imageData.ToPointer();
+
+                    dataPtr += nChannels;
+                    dataPtrCopy += nChannels;
+
+                    for (int x = 1; x < width - 1; x++)
                     {
-                        dataPtr2[0] = 255;
-                    }
-                    else if (tempArray[0] < 0)
-                    {
-                        dataPtr2[0] = 0;
-                    }
-                    else
-                    {
-                        dataPtr2[0] = (byte)tempArray[0];
-                    }
+                        tempArray[0] = Math.Abs(
+                                ((dataPtrCopy - nChannels)[0] + 2 * (dataPtrCopy - nChannels)[0] + (dataPtrCopy + m.widthStep - nChannels)[0]) -
+                                ((dataPtrCopy + nChannels)[0] + 2 * (dataPtrCopy + nChannels)[0] + (dataPtrCopy + m.widthStep + nChannels)[0])) +
 
-                    if (tempArray[1] > 255)
-                    {
-                        dataPtr2[1] = 255;
-                    }
-                    else if (tempArray[1] < 0)
-                    {
-                        dataPtr2[1] = 0;
-                    }
-                    else
-                    {
-                        dataPtr2[1] = (byte)tempArray[1];
-                    }
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep - nChannels)[0] + 2 * (dataPtrCopy + m.widthStep)[0] + (dataPtrCopy + m.widthStep + nChannels)[0]) -
+                                ((dataPtrCopy - nChannels)[0] + 2 * (dataPtrCopy)[0] + (dataPtrCopy + nChannels)[0]));
 
-                    if (tempArray[2] > 255)
-                    {
-                        dataPtr2[2] = 255;
-                    }
-                    else if (tempArray[2] < 0)
-                    {
-                        dataPtr2[2] = 0;
-                    }
-                    else
-                    {
-                        dataPtr2[2] = (byte)tempArray[2];
-                    }
+                        tempArray[1] = Math.Abs(
+                                ((dataPtrCopy - nChannels)[1] + 2 * (dataPtrCopy - nChannels)[1] + (dataPtrCopy + m.widthStep - nChannels)[1]) -
+                                ((dataPtrCopy + nChannels)[1] + 2 * (dataPtrCopy + nChannels)[1] + (dataPtrCopy + m.widthStep + nChannels)[1])) +
 
-                    //Right-top pixel
-                    dataPtr2 = (dataPtr + height * m.widthStep + 0 * nChannels);
-                    dataPtrCopy2 = (dataPtrCopy + height * m.widthStep + 0 * nChannels);
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep - nChannels)[1] + 2 * (dataPtrCopy + m.widthStep)[1] + (dataPtrCopy + m.widthStep + nChannels)[1]) -
+                                ((dataPtrCopy - nChannels)[1] + 2 * (dataPtrCopy)[1] + (dataPtrCopy + nChannels)[1]));
 
-                    tempArray[0] = Math.Abs(
-                            ((dataPtrCopy2 - m.widthStep - nChannels)[0] +
-                            2 * (dataPtrCopy2 - nChannels)[0] +
-                            (dataPtrCopy2 + m.widthStep - nChannels)[0]) -
+                        tempArray[2] = Math.Abs(
+                                ((dataPtrCopy - nChannels)[2] + 2 * (dataPtrCopy - nChannels)[2] + (dataPtrCopy + m.widthStep - nChannels)[2]) -
+                                ((dataPtrCopy + nChannels)[2] + 2 * (dataPtrCopy + nChannels)[2] + (dataPtrCopy + m.widthStep + nChannels)[2])) +
 
-                            ((dataPtrCopy2)[0] +
-                            2 * (dataPtrCopy2)[0] +
-                            (dataPtrCopy2 + m.widthStep)[0]) +
-
-                           Math.Abs(
-                            ((dataPtrCopy2 + m.widthStep - nChannels)[0] +
-                            2 * (dataPtrCopy2 + m.widthStep)[0] +
-                            (dataPtrCopy2 + m.widthStep)[0]) -
-
-                            ((dataPtrCopy2 - nChannels)[0] +
-                            2 * (dataPtrCopy2)[0] +
-                            (dataPtrCopy2)[0])));
-
-                    tempArray[1] = Math.Abs(
-                           ((dataPtrCopy2 - m.widthStep - nChannels)[1] +
-                           2 * (dataPtrCopy2 - nChannels)[1] +
-                           (dataPtrCopy2 + m.widthStep - nChannels)[1]) -
-
-                           ((dataPtrCopy2)[1] +
-                           2 * (dataPtrCopy2)[1] +
-                           (dataPtrCopy2 + m.widthStep)[1]) +
-
-                          Math.Abs(
-                           ((dataPtrCopy2 + m.widthStep - nChannels)[1] +
-                           2 * (dataPtrCopy2 + m.widthStep)[1] +
-                           (dataPtrCopy2 + m.widthStep)[1]) -
-
-                           ((dataPtrCopy2 - nChannels)[1] +
-                           2 * (dataPtrCopy2)[1] +
-                           (dataPtrCopy2)[1])));
-
-                    tempArray[2] = Math.Abs(
-                           ((dataPtrCopy2 - m.widthStep - nChannels)[2] +
-                           2 * (dataPtrCopy2 - nChannels)[2] +
-                           (dataPtrCopy2 + m.widthStep - nChannels)[2]) -
-
-                           ((dataPtrCopy2)[2] +
-                           2 * (dataPtrCopy2)[2] +
-                           (dataPtrCopy2 + m.widthStep)[2]) +
-
-                          Math.Abs(
-                           ((dataPtrCopy2 + m.widthStep - nChannels)[2] +
-                           2 * (dataPtrCopy2 + m.widthStep)[2] +
-                           (dataPtrCopy2 + m.widthStep)[2]) -
-
-                           ((dataPtrCopy2 - nChannels)[2] +
-                           2 * (dataPtrCopy2)[2] +
-                           (dataPtrCopy2)[2])));
-
-
-                    if (tempArray[0] > 255)
-                    {
-                        dataPtr2[0] = 255;
-                    }
-                    else if (tempArray[0] < 0)
-                    {
-                        dataPtr2[0] = 0;
-                    }
-                    else
-                    {
-                        dataPtr2[0] = (byte)tempArray[0];
-                    }
-
-                    if (tempArray[1] > 255)
-                    {
-                        dataPtr2[1] = 255;
-                    }
-                    else if (tempArray[1] < 0)
-                    {
-                        dataPtr2[1] = 0;
-                    }
-                    else
-                    {
-                        dataPtr2[1] = (byte)tempArray[1];
-                    }
-
-                    if (tempArray[2] > 255)
-                    {
-                        dataPtr2[2] = 255;
-                    }
-                    else if (tempArray[2] < 0)
-                    {
-                        dataPtr2[2] = 0;
-                    }
-                    else
-                    {
-                        dataPtr2[2] = (byte)tempArray[2];
-                    }
-
-                    //Right-down pixel
-                    dataPtr2 = (dataPtr + height * m.widthStep + 0 * nChannels);
-                    dataPtrCopy2 = (dataPtrCopy + height * m.widthStep + 0 * nChannels);
-
-                    tempArray[0] = Math.Abs(
-                            ((dataPtrCopy2 - m.widthStep)[0] +
-                            2 * (dataPtrCopy2)[0] +
-                            (dataPtrCopy2)[0]) -
-
-                            ((dataPtrCopy2 - m.widthStep + nChannels)[0] +
-                            2 * (dataPtrCopy2 + nChannels)[0] +
-                            (dataPtrCopy2 + m.widthStep + nChannels)[0]) +
-
-                           Math.Abs(
-                            ((dataPtrCopy2 + m.widthStep - nChannels)[0] +
-                            2 * (dataPtrCopy2 + m.widthStep)[0] +
-                            (dataPtrCopy2 + m.widthStep)[0]) -
-
-                            ((dataPtrCopy2 - nChannels)[0] +
-                            2 * (dataPtrCopy2)[0] +
-                            (dataPtrCopy2)[0])));
-
-                    tempArray[1] = Math.Abs(
-                           ((dataPtrCopy2 - m.widthStep - nChannels)[1] +
-                           2 * (dataPtrCopy2 - nChannels)[1] +
-                           (dataPtrCopy2 + m.widthStep - nChannels)[1]) -
-
-                           ((dataPtrCopy2)[1] +
-                           2 * (dataPtrCopy2)[1] +
-                           (dataPtrCopy2 + m.widthStep)[1]) +
-
-                          Math.Abs(
-                           ((dataPtrCopy2 + m.widthStep - nChannels)[1] +
-                           2 * (dataPtrCopy2 + m.widthStep)[1] +
-                           (dataPtrCopy2 + m.widthStep)[1]) -
-
-                           ((dataPtrCopy2 - nChannels)[1] +
-                           2 * (dataPtrCopy2)[1] +
-                           (dataPtrCopy2)[1])));
-
-                    tempArray[2] = Math.Abs(
-                           ((dataPtrCopy2 - m.widthStep - nChannels)[2] +
-                           2 * (dataPtrCopy2 - nChannels)[2] +
-                           (dataPtrCopy2 + m.widthStep - nChannels)[2]) -
-
-                           ((dataPtrCopy2)[2] +
-                           2 * (dataPtrCopy2)[2] +
-                           (dataPtrCopy2 + m.widthStep)[2]) +
-
-                          Math.Abs(
-                           ((dataPtrCopy2 + m.widthStep - nChannels)[2] +
-                           2 * (dataPtrCopy2 + m.widthStep)[2] +
-                           (dataPtrCopy2 + m.widthStep)[2]) -
-
-                           ((dataPtrCopy2 - nChannels)[2] +
-                           2 * (dataPtrCopy2)[2] +
-                           (dataPtrCopy2)[2])));
-
-
-                    if (tempArray[0] > 255)
-                    {
-                        dataPtr2[0] = 255;
-                    }
-                    else if (tempArray[0] < 0)
-                    {
-                        dataPtr2[0] = 0;
-                    }
-                    else
-                    {
-                        dataPtr2[0] = (byte)tempArray[0];
-                    }
-
-                    if (tempArray[1] > 255)
-                    {
-                        dataPtr2[1] = 255;
-                    }
-                    else if (tempArray[1] < 0)
-                    {
-                        dataPtr2[1] = 0;
-                    }
-                    else
-                    {
-                        dataPtr2[1] = (byte)tempArray[1];
-                    }
-
-                    if (tempArray[2] > 255)
-                    {
-                        dataPtr2[2] = 255;
-                    }
-                    else if (tempArray[2] < 0)
-                    {
-                        dataPtr2[2] = 0;
-                    }
-                    else
-                    {
-                        dataPtr2[2] = (byte)tempArray[2];
-                    }
-
-
-
-                    //Last Line
-                    for (int x = 0; x < width; x++)
-                    {
-                        dataPtr2 = (dataPtr + (height - 1) * m.widthStep + x * nChannels);
-                        dataPtrCopy2 = (dataPtrCopy + (height - 1) * m.widthStep + x * nChannels);
-
-                        tempArray[0] = Math.Abs(dataPtrCopy2[0] - (dataPtrCopy2 + nChannels)[0]);
-                        tempArray[1] = Math.Abs(dataPtrCopy2[1] - (dataPtrCopy2 + nChannels)[1]);
-                        tempArray[2] = Math.Abs(dataPtrCopy2[2] - (dataPtrCopy2 + nChannels)[2]);
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep - nChannels)[2] + 2 * (dataPtrCopy + m.widthStep)[2] + (dataPtrCopy + m.widthStep + nChannels)[2]) -
+                                ((dataPtrCopy - nChannels)[2] + 2 * (dataPtrCopy)[2] + (dataPtrCopy + nChannels)[2]));
 
 
                         if (tempArray[0] > 255)
                         {
-                            dataPtr2[0] = 255;
+                            dataPtr[0] = 255;
                         }
                         else if (tempArray[0] < 0)
                         {
-                            dataPtr2[0] = 0;
+                            dataPtr[0] = 0;
                         }
                         else
                         {
-                            dataPtr2[0] = (byte)tempArray[0];
+                            dataPtr[0] = (byte)tempArray[0];
                         }
 
                         if (tempArray[1] > 255)
                         {
-                            dataPtr2[1] = 255;
+                            dataPtr[1] = 255;
                         }
                         else if (tempArray[1] < 0)
                         {
-                            dataPtr2[1] = 0;
+                            dataPtr[1] = 0;
                         }
                         else
                         {
-                            dataPtr2[1] = (byte)tempArray[1];
+                            dataPtr[1] = (byte)tempArray[1];
                         }
 
                         if (tempArray[2] > 255)
                         {
-                            dataPtr2[2] = 255;
+                            dataPtr[2] = 255;
                         }
                         else if (tempArray[2] < 0)
                         {
-                            dataPtr2[2] = 0;
+                            dataPtr[2] = 0;
                         }
                         else
                         {
-                            dataPtr2[2] = (byte)tempArray[2];
+                            dataPtr[2] = (byte)tempArray[2];
                         }
+
+                        dataPtr += nChannels;
+                        dataPtrCopy += nChannels;
+                    }
+
+                    //Bottom Line
+
+                    dataPtr = (byte*)m.imageData.ToPointer();
+                    dataPtrCopy = (byte*)mCopy.imageData.ToPointer();
+
+                    dataPtr += nChannels + (height-1) * m.widthStep;
+                    dataPtrCopy += nChannels + (height-1) * m.widthStep;
+
+                    for (int x = 1; x < width - 1; x++)
+                    {
+                        tempArray[0] = Math.Abs(
+                                ((dataPtrCopy - nChannels - m.widthStep)[0] + 2 * (dataPtrCopy - nChannels)[0] + (dataPtrCopy - nChannels)[0]) -
+                                ((dataPtrCopy + nChannels - m.widthStep)[0] + 2 * (dataPtrCopy + nChannels)[0] + (dataPtrCopy + nChannels)[0])) +
+
+                                Math.Abs(
+                                ((dataPtrCopy - nChannels)[0] + 2 * (dataPtrCopy)[0] + (dataPtrCopy + nChannels)[0]) -
+                                ((dataPtrCopy - nChannels - m.widthStep)[0] + 2 * (dataPtrCopy - m.widthStep)[0] + (dataPtrCopy + nChannels - m.widthStep)[0]));
+
+                        tempArray[1] = Math.Abs(
+                                ((dataPtrCopy - nChannels - m.widthStep)[1] + 2 * (dataPtrCopy - nChannels)[1] + (dataPtrCopy - nChannels)[1]) -
+                                ((dataPtrCopy + nChannels - m.widthStep)[1] + 2 * (dataPtrCopy + nChannels)[1] + (dataPtrCopy + nChannels)[1])) +
+
+                                Math.Abs(
+                                ((dataPtrCopy - nChannels)[1] + 2 * (dataPtrCopy)[1] + (dataPtrCopy + nChannels)[1]) -
+                                ((dataPtrCopy - nChannels - m.widthStep)[1] + 2 * (dataPtrCopy - m.widthStep)[1] + (dataPtrCopy + nChannels - m.widthStep)[1]));
+
+                        tempArray[2] = Math.Abs(
+                                ((dataPtrCopy - nChannels - m.widthStep)[2] + 2 * (dataPtrCopy - nChannels)[2] + (dataPtrCopy - nChannels)[2]) -
+                                ((dataPtrCopy + nChannels - m.widthStep)[2] + 2 * (dataPtrCopy + nChannels)[2] + (dataPtrCopy + nChannels)[2])) +
+
+                                Math.Abs(
+                                ((dataPtrCopy - nChannels)[2] + 2 * (dataPtrCopy)[2] + (dataPtrCopy + nChannels)[2]) -
+                                ((dataPtrCopy - nChannels - m.widthStep)[2] + 2 * (dataPtrCopy - m.widthStep)[2] + (dataPtrCopy + nChannels - m.widthStep)[2]));
+
+
+                        if (tempArray[0] > 255)
+                        {
+                            dataPtr[0] = 255;
+                        }
+                        else if (tempArray[0] < 0)
+                        {
+                            dataPtr[0] = 0;
+                        }
+                        else
+                        {
+                            dataPtr[0] = (byte)tempArray[0];
+                        }
+
+                        if (tempArray[1] > 255)
+                        {
+                            dataPtr[1] = 255;
+                        }
+                        else if (tempArray[1] < 0)
+                        {
+                            dataPtr[1] = 0;
+                        }
+                        else
+                        {
+                            dataPtr[1] = (byte)tempArray[1];
+                        }
+
+                        if (tempArray[2] > 255)
+                        {
+                            dataPtr[2] = 255;
+                        }
+                        else if (tempArray[2] < 0)
+                        {
+                            dataPtr[2] = 0;
+                        }
+                        else
+                        {
+                            dataPtr[2] = (byte)tempArray[2];
+                        }
+
+                        dataPtr += nChannels;
+                        dataPtrCopy += nChannels;
                     }
 
                     //Left Column
-                    for (int y = 0; y < height; y++)
-                    {
-                        dataPtr2 = (dataPtr + y * m.widthStep + (width - 1) * nChannels);
-                        dataPtrCopy2 = (dataPtrCopy + y * m.widthStep + (width - 1) * nChannels);
+                    dataPtr = (byte*)m.imageData.ToPointer();
+                    dataPtrCopy = (byte*)mCopy.imageData.ToPointer();
 
-                        tempArray[0] = Math.Abs(dataPtrCopy2[0] - (dataPtrCopy2 + m.widthStep)[0]);
-                        tempArray[1] = Math.Abs(dataPtrCopy2[1] - (dataPtrCopy2 + m.widthStep)[1]);
-                        tempArray[2] = Math.Abs(dataPtrCopy2[2] - (dataPtrCopy2 + m.widthStep)[2]);
+                    dataPtr += m.widthStep;
+                    dataPtrCopy += m.widthStep;
+
+                    for (int y = 1; y < height - 1; y++)
+                    {
+                        tempArray[0] = Math.Abs(
+                                ((dataPtrCopy - m.widthStep)[0] + 2 * (dataPtrCopy)[0] + (dataPtrCopy + m.widthStep)[0]) -
+                                ((dataPtrCopy + nChannels - m.widthStep)[0] + 2 * (dataPtrCopy + nChannels)[0] + (dataPtrCopy + nChannels + m.widthStep)[0])) +
+
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep)[0] + 2 * (dataPtrCopy + m.widthStep)[0] + (dataPtrCopy + nChannels + m.widthStep)[0]) -
+                                ((dataPtrCopy - m.widthStep)[0] + 2 * (dataPtrCopy - m.widthStep)[0] + (dataPtrCopy + nChannels - m.widthStep)[0]));
+
+                        tempArray[1] = Math.Abs(
+                                ((dataPtrCopy - m.widthStep)[1] + 2 * (dataPtrCopy)[1] + (dataPtrCopy + m.widthStep)[1]) -
+                                ((dataPtrCopy + nChannels - m.widthStep)[1] + 2 * (dataPtrCopy + nChannels)[1] + (dataPtrCopy + nChannels + m.widthStep)[1])) +
+
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep)[1] + 2 * (dataPtrCopy + m.widthStep)[1] + (dataPtrCopy + nChannels + m.widthStep)[1]) -
+                                ((dataPtrCopy - m.widthStep)[1] + 2 * (dataPtrCopy - m.widthStep)[1] + (dataPtrCopy + nChannels - m.widthStep)[1]));
+
+                        tempArray[2] = Math.Abs(
+                                ((dataPtrCopy - m.widthStep)[2] + 2 * (dataPtrCopy)[2] + (dataPtrCopy + m.widthStep)[2]) -
+                                ((dataPtrCopy + nChannels - m.widthStep)[2] + 2 * (dataPtrCopy + nChannels)[2] + (dataPtrCopy + nChannels + m.widthStep)[2])) +
+
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep)[2] + 2 * (dataPtrCopy + m.widthStep)[2] + (dataPtrCopy + nChannels + m.widthStep)[2]) -
+                                ((dataPtrCopy - m.widthStep)[2] + 2 * (dataPtrCopy - m.widthStep)[2] + (dataPtrCopy + nChannels - m.widthStep)[2]));
 
 
                         if (tempArray[0] > 255)
                         {
-                            dataPtr2[0] = 255;
+                            dataPtr[0] = 255;
                         }
                         else if (tempArray[0] < 0)
                         {
-                            dataPtr2[0] = 0;
+                            dataPtr[0] = 0;
                         }
                         else
                         {
-                            dataPtr2[0] = (byte)tempArray[0];
+                            dataPtr[0] = (byte)tempArray[0];
                         }
 
                         if (tempArray[1] > 255)
                         {
-                            dataPtr2[1] = 255;
+                            dataPtr[1] = 255;
                         }
                         else if (tempArray[1] < 0)
                         {
-                            dataPtr2[1] = 0;
+                            dataPtr[1] = 0;
                         }
                         else
                         {
-                            dataPtr2[1] = (byte)tempArray[1];
+                            dataPtr[1] = (byte)tempArray[1];
                         }
 
                         if (tempArray[2] > 255)
                         {
-                            dataPtr2[2] = 255;
+                            dataPtr[2] = 255;
                         }
                         else if (tempArray[2] < 0)
                         {
-                            dataPtr2[2] = 0;
+                            dataPtr[2] = 0;
                         }
                         else
                         {
-                            dataPtr2[2] = (byte)tempArray[2];
+                            dataPtr[2] = (byte)tempArray[2];
                         }
+
+                        dataPtr += m.widthStep;
+                        dataPtrCopy += m.widthStep;
                     }
 
                     //Right Column
-                    for (int y = 0; y < height; y++)
-                    {
-                        dataPtr2 = (dataPtr + y * m.widthStep + (width - 1) * nChannels);
-                        dataPtrCopy2 = (dataPtrCopy + y * m.widthStep + (width - 1) * nChannels);
+                    dataPtr = (byte*)m.imageData.ToPointer();
+                    dataPtrCopy = (byte*)mCopy.imageData.ToPointer();
 
-                        tempArray[0] = Math.Abs(dataPtrCopy2[0] - (dataPtrCopy2 + m.widthStep)[0]);
-                        tempArray[1] = Math.Abs(dataPtrCopy2[1] - (dataPtrCopy2 + m.widthStep)[1]);
-                        tempArray[2] = Math.Abs(dataPtrCopy2[2] - (dataPtrCopy2 + m.widthStep)[2]);
+                    dataPtr += m.widthStep + (width-1) * nChannels;
+                    dataPtrCopy += m.widthStep + (width-1) * nChannels;
+
+                    for (int y = 1; y < height - 1; y++)
+                    {
+                        tempArray[0] = Math.Abs(
+                                ((dataPtrCopy - m.widthStep - nChannels)[0] + 2 * (dataPtrCopy - nChannels)[0] + (dataPtrCopy + m.widthStep - nChannels)[0]) -
+                                ((dataPtrCopy - m.widthStep)[0] + 2 * (dataPtrCopy)[0] + (dataPtrCopy+ m.widthStep)[0])) +
+
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep - nChannels)[0] + 2 * (dataPtrCopy + m.widthStep)[0] + (dataPtrCopy + m.widthStep)[0]) -
+                                ((dataPtrCopy - m.widthStep - nChannels)[0] + 2 * (dataPtrCopy - m.widthStep)[0] + (dataPtrCopy - m.widthStep)[0]));
+
+                        tempArray[1] = Math.Abs(
+                                ((dataPtrCopy - m.widthStep - nChannels)[1] + 2 * (dataPtrCopy - nChannels)[1] + (dataPtrCopy + m.widthStep - nChannels)[1]) -
+                                ((dataPtrCopy - m.widthStep)[1] + 2 * (dataPtrCopy)[1] + (dataPtrCopy+ m.widthStep)[1])) +
+
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep - nChannels)[1] + 2 * (dataPtrCopy + m.widthStep)[1] + (dataPtrCopy + m.widthStep)[1]) -
+                                ((dataPtrCopy - m.widthStep - nChannels)[1] + 2 * (dataPtrCopy - m.widthStep)[1] + (dataPtrCopy - m.widthStep)[1]));
+
+                        tempArray[2] = Math.Abs(
+                                ((dataPtrCopy - m.widthStep - nChannels)[2] + 2 * (dataPtrCopy - nChannels)[2] + (dataPtrCopy + m.widthStep - nChannels)[2]) -
+                                ((dataPtrCopy - m.widthStep)[2] + 2 * (dataPtrCopy)[2] + (dataPtrCopy+ m.widthStep)[2])) +
+
+                                Math.Abs(
+                                ((dataPtrCopy + m.widthStep - nChannels)[2] + 2 * (dataPtrCopy + m.widthStep)[2] + (dataPtrCopy + m.widthStep)[2]) -
+                                ((dataPtrCopy - m.widthStep - nChannels)[2] + 2 * (dataPtrCopy - m.widthStep)[2] + (dataPtrCopy - m.widthStep)[2]));
 
 
                         if (tempArray[0] > 255)
                         {
-                            dataPtr2[0] = 255;
+                            dataPtr[0] = 255;
                         }
                         else if (tempArray[0] < 0)
                         {
-                            dataPtr2[0] = 0;
+                            dataPtr[0] = 0;
                         }
                         else
                         {
-                            dataPtr2[0] = (byte)tempArray[0];
+                            dataPtr[0] = (byte)tempArray[0];
                         }
 
                         if (tempArray[1] > 255)
                         {
-                            dataPtr2[1] = 255;
+                            dataPtr[1] = 255;
                         }
                         else if (tempArray[1] < 0)
                         {
-                            dataPtr2[1] = 0;
+                            dataPtr[1] = 0;
                         }
                         else
                         {
-                            dataPtr2[1] = (byte)tempArray[1];
+                            dataPtr[1] = (byte)tempArray[1];
                         }
 
                         if (tempArray[2] > 255)
                         {
-                            dataPtr2[2] = 255;
+                            dataPtr[2] = 255;
                         }
                         else if (tempArray[2] < 0)
                         {
-                            dataPtr2[2] = 0;
+                            dataPtr[2] = 0;
                         }
                         else
                         {
-                            dataPtr2[2] = (byte)tempArray[2];
+                            dataPtr[2] = (byte)tempArray[2];
                         }
+
+                        dataPtr += m.widthStep;
+                        dataPtrCopy += m.widthStep;
                     }
-
-
                 }
             }
         }
